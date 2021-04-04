@@ -26,10 +26,8 @@ pub enum Vote {
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub enum AppchainStatus {
-    InQueue,
-    OnVote,
+    InProgress,
     Frozen,
-    Broken,
     Active,
 }
 
@@ -52,7 +50,6 @@ pub struct Delegation {
 pub struct Validator {
     account_id: String,
     id: String,
-    ocw_id: String,
     weight: u128,
     staked_amount: u128,
     block_height: BlockHeight,
@@ -64,7 +61,6 @@ impl Default for Validator {
         Self {
             account_id: String::from(""),
             id: String::from(""),
-            ocw_id: String::from(""),
             weight: 0,
             staked_amount: 0,
             block_height: 0,
@@ -86,8 +82,8 @@ pub struct Appchain {
     id: u32,
     founder_id: AccountId,
     appchain_name: String,
-    runtime_url: String,
-    runtime_hash: String,
+    chain_spec_url: String,
+    chain_spec_hash: String,
     bond_tokens: u128,
     validator_set: HashMap<u32, ValidatorSet>,
     validators: Vec<Validator>,
@@ -157,21 +153,18 @@ impl OctopusRelay {
 
         match msg_vec.get(0).unwrap().as_str() {
             "register_appchain" => {
-                assert_eq!(msg_vec.len(), 4, "params length wrong!");
+                assert_eq!(msg_vec.len(), 2, "params length wrong!");
                 self.register_appchain(
                     msg_vec.get(1).unwrap().to_string(),
-                    msg_vec.get(2).unwrap().to_string(),
-                    msg_vec.get(3).unwrap().to_string(),
                     amount.0,
                 );
                 PromiseOrValue::Value(U128::from(0))
             }
             "staking" => {
-                assert_eq!(msg_vec.len(), 4, "params length wrong!");
+                assert_eq!(msg_vec.len(), 3, "params length wrong!");
                 self.staking(
                     msg_vec.get(1).unwrap().parse::<u32>().unwrap(),
                     msg_vec.get(2).unwrap().to_string(),
-                    msg_vec.get(3).unwrap().to_string(),
                     amount.0,
                 );
                 PromiseOrValue::Value(U128::from(0))
@@ -191,8 +184,6 @@ impl OctopusRelay {
     fn register_appchain(
         &mut self,
         appchain_name: String,
-        runtime_url: String,
-        runtime_hash: String,
         bond_tokens: u128,
     ) {
         let account_id = env::signer_account_id();
@@ -212,12 +203,12 @@ impl OctopusRelay {
             id: appchain_id,
             founder_id: account_id.clone(),
             appchain_name: appchain_name.clone(),
-            runtime_url,
-            runtime_hash,
+            chain_spec_url: String::from(""),
+            chain_spec_hash: String::from(""),
             bond_tokens,
             validator_set: validator_hash_map,
             validators: Vec::default(),
-            status: AppchainStatus::default(),
+            status: AppchainStatus::InProgress,
             block_height: env::block_index(),
         };
 
@@ -225,11 +216,36 @@ impl OctopusRelay {
         log!("appchain added, appchain_id is {}", appchain_id);
     }
 
+    pub fn update_appchain(&mut self, appchain_id: u32, chain_spec_url: String, chain_spec_hash: String) {
+        let mut appchain = self
+            .appchains
+            .get(&appchain_id)
+            .cloned()
+            .expect("Appchain not found");
+
+        let account_id = env::signer_account_id();
+
+        // Check amount
+        assert!(
+            account_id == appchain.founder_id,
+            "You aren't the appchain founder!"
+        );
+
+        appchain.chain_spec_url = chain_spec_url;
+        appchain.chain_spec_hash = chain_spec_hash;
+
+        appchain.status = AppchainStatus::Frozen;
+
+        self.appchains.insert(appchain_id, appchain);
+        
+    }
+
     pub fn get_appchains(&self, from_index: u32, limit: u32) -> Vec<&Appchain> {
         (from_index..std::cmp::min(from_index + limit, self.appchains.len() as u32))
             .map(|index| self.appchains.get(&index).unwrap())
             .collect()
     }
+
     pub fn get_num_appchains(&self) -> usize {
         self.appchains.len()
     }
@@ -265,7 +281,7 @@ impl OctopusRelay {
         appchain.validator_set.len() as u32 - 1
     }
 
-    fn staking(&mut self, appchain_id: u32, id: String, ocw_id: String, amount: u128) {
+    fn staking(&mut self, appchain_id: u32, id: String, amount: u128) {
         let account_id = env::signer_account_id();
 
         // Check amount
@@ -293,7 +309,6 @@ impl OctopusRelay {
         appchain.validators.push(Validator {
             account_id: account_id.clone(),
             id,
-            ocw_id,
             weight: amount,
             block_height: env::block_index(),
             staked_amount: amount,
@@ -354,6 +369,7 @@ impl OctopusRelay {
         self.update_validator_set(appchain_id);
     }
 
+    #[payable]
     pub fn unstaking(&mut self, appchain_id: u32) {
         let account_id = env::signer_account_id();
         let appchain = self
@@ -378,11 +394,11 @@ impl OctopusRelay {
             })
             .to_string()
             .as_bytes(),
-            NO_DEPOSIT,
+            1,
             SINGLE_CALL_GAS,
         );
 
-        // Check transfer token result and staking
+        // Check transfer token result and unstaking
         let promise_staking = env::promise_then(
             promise_transfer,
             env::current_account_id(),
@@ -390,7 +406,7 @@ impl OctopusRelay {
             json!({
                 "appchain_id": appchain_id,
                 "account_id": account_id,
-                "amount": validator.staked_amount,
+                "amount": validator.staked_amount.to_string(),
             })
             .to_string()
             .as_bytes(),
@@ -405,8 +421,9 @@ impl OctopusRelay {
         &mut self,
         appchain_id: u32,
         account_id: AccountId,
-        amount: u128,
+        amount: U128,
     ) {
+        let amount: u128 = amount.into();
         match env::promise_result(0) {
             PromiseResult::Successful(_) => {
                 let mut appchain = self
