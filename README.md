@@ -2,7 +2,7 @@
 
 Octopus Relay is part of the Octopus Network.
 
-This is the smart contract, you can also follow the [webapp](https://github.com/octopus-network/octopus-relay-webapp.git).
+This is the smart contract, you can also follow the [Webapp](https://github.com/octopus-network/octopus-relay-webapp.git).
 
 ## Building
 

@@ -225,7 +225,7 @@ impl OctopusRelay {
 
         let account_id = env::signer_account_id();
 
-        // Check amount
+        // Only appchain founder can do this
         assert!(
             account_id == appchain.founder_id,
             "You aren't the appchain founder!"
@@ -255,8 +255,16 @@ impl OctopusRelay {
         self.total_staked_balance
     }
 
+    pub fn get_owner(&self) -> AccountId {
+        self.owner.clone()
+    }
+
     pub fn get_minium_staking_amount(&self) -> u128 {
         self.minium_staking_amount
+    }
+
+    pub fn get_appchain_minium_validators(&self) -> u32 {
+        self.appchain_minium_validators
     }
 
     pub fn get_appchain(&self, appchain_id: u32) -> Option<Appchain> {
@@ -454,10 +462,10 @@ impl OctopusRelay {
             .expect("Appchain not found");
         let account_id = env::signer_account_id();
 
-        // Only the appchain founder can do this
+        // Only admin can do this
         assert!(
-            account_id == appchain.founder_id,
-            "You're not the appchain founder"
+            account_id == self.owner,
+            "You're not the relay admin"
         );
 
         // Can only active a frozen appchain
@@ -478,6 +486,33 @@ impl OctopusRelay {
 
         // Check to update validator set
         self.update_validator_set(appchain_id);
+    }
+
+    pub fn freeze_appchain(&mut self, appchain_id: u32) {
+        let mut appchain = self
+        .appchains
+        .get(&appchain_id)
+        .cloned()
+        .expect("Appchain not found");
+
+        let account_id = env::signer_account_id();
+
+        // Only admin can do this
+        assert!(
+            account_id == self.owner,
+            "You're not the relay admin"
+        );
+
+        // Check status
+        assert!(
+            appchain.status == AppchainStatus::Active,
+            "Appchain status incorrect"
+        );
+
+        appchain.status = AppchainStatus::Frozen;
+
+        // Update state
+        self.appchains.insert(appchain_id, appchain);
     }
 
     /*
