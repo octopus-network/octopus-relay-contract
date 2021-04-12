@@ -31,7 +31,7 @@ pub fn default_register_appchain(
         &json!({
             "receiver_id": relay.valid_account_id(),
             "amount": transfer_amount.to_string(),
-            "msg": "register_appchain,testchain",
+            "msg": "register_appchain,testchain,website_url_string,github_address_string",
         })
         .to_string()
         .into_bytes(),
@@ -137,6 +137,8 @@ fn simulate_update_appchain() {
         "update_appchain",
         &json!({
             "appchain_id": 0,
+            "website_url": String::from("website_url_string"),
+            "github_address": String::from("github_address_url"),
             "chain_spec_url": chain_spec_url,
             "chain_spec_hash": chain_spec_hash
         })
@@ -147,15 +149,6 @@ fn simulate_update_appchain() {
     );
 
     outcome.assert_success();
-    let results = outcome.promise_results();
-    let logs = results[1].as_ref().unwrap().logs();
-    assert_eq!(
-        logs[0],
-        format!(
-            "appchain updated with chain_spec_url={}, chain_spec_hash={}.",
-            chain_spec_url, chain_spec_hash
-        )
-    );
 }
 
 #[test]
