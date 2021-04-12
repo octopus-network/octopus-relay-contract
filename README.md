@@ -16,7 +16,7 @@ This is the smart contract, you can also follow the [Webapp](https://github.com/
 
 ```bash
 
-cargo test --package octopus-relay -- --nocapture
+cargo test --package octopus-relay-contract -- --nocapture
 
 ```
 

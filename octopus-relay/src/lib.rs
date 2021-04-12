@@ -37,7 +37,7 @@ impl Default for AppchainStatus {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Delegation {
     account_id: String,
@@ -45,7 +45,7 @@ pub struct Delegation {
     block_height: BlockHeight,
 }
 
-#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Validator {
     account_id: String,
@@ -69,26 +69,26 @@ impl Default for Validator {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct ValidatorSet {
-    sequence_number: u32,
-    validators: Vec<Validator>,
+    pub sequence_number: u32,
+    pub validators: Vec<Validator>,
 }
 
-#[derive(Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[derive(Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Appchain {
-    id: u32,
-    founder_id: AccountId,
-    appchain_name: String,
-    chain_spec_url: String,
-    chain_spec_hash: String,
-    bond_tokens: u128,
-    validator_set: HashMap<u32, ValidatorSet>,
-    validators: Vec<Validator>,
-    status: AppchainStatus,
-    block_height: BlockHeight,
+    pub id: u32,
+    pub founder_id: AccountId,
+    pub appchain_name: String,
+    pub chain_spec_url: String,
+    pub chain_spec_hash: String,
+    pub bond_tokens: u128,
+    pub validator_set: HashMap<u32, ValidatorSet>,
+    pub validators: Vec<Validator>,
+    pub status: AppchainStatus,
+    pub block_height: BlockHeight,
 }
 
 // Structs in Rust are similar to other languages, and may include impl keyword as shown below
@@ -117,7 +117,7 @@ impl OctopusRelay {
         owner: AccountId,
         token_contract_id: AccountId,
         appchain_minium_validators: u32,
-        minium_staking_amount: u128,
+        minium_staking_amount: U128,
     ) -> Self {
         assert!(!env::state_exists(), "The contract is already initialized");
         Self {
@@ -126,7 +126,7 @@ impl OctopusRelay {
             appchains: HashMap::default(),
             total_staked_balance: 0,
             appchain_minium_validators,
-            minium_staking_amount,
+            minium_staking_amount: minium_staking_amount.0,
         }
     }
 
@@ -154,10 +154,7 @@ impl OctopusRelay {
         match msg_vec.get(0).unwrap().as_str() {
             "register_appchain" => {
                 assert_eq!(msg_vec.len(), 2, "params length wrong!");
-                self.register_appchain(
-                    msg_vec.get(1).unwrap().to_string(),
-                    amount.0,
-                );
+                self.register_appchain(msg_vec.get(1).unwrap().to_string(), amount.0);
                 PromiseOrValue::Value(U128::from(0))
             }
             "staking" => {
@@ -181,11 +178,7 @@ impl OctopusRelay {
         }
     }
 
-    fn register_appchain(
-        &mut self,
-        appchain_name: String,
-        bond_tokens: u128,
-    ) {
+    fn register_appchain(&mut self, appchain_name: String, bond_tokens: u128) {
         let account_id = env::signer_account_id();
         let appchain_id = self.appchains.len() as u32;
 
@@ -213,10 +206,19 @@ impl OctopusRelay {
         };
 
         self.appchains.insert(appchain_id, appchain);
-        log!("appchain added, appchain_id is {}", appchain_id);
+        log!(
+            "Appchain added, appchain_id is {}, bund_tokens is {}.",
+            appchain_id,
+            bond_tokens
+        );
     }
 
-    pub fn update_appchain(&mut self, appchain_id: u32, chain_spec_url: String, chain_spec_hash: String) {
+    pub fn update_appchain(
+        &mut self,
+        appchain_id: u32,
+        chain_spec_url: String,
+        chain_spec_hash: String,
+    ) {
         let mut appchain = self
             .appchains
             .get(&appchain_id)
@@ -230,14 +232,15 @@ impl OctopusRelay {
             account_id == appchain.founder_id,
             "You aren't the appchain founder!"
         );
-
         appchain.chain_spec_url = chain_spec_url;
         appchain.chain_spec_hash = chain_spec_hash;
-
         appchain.status = AppchainStatus::Frozen;
-
         self.appchains.insert(appchain_id, appchain);
-        
+        log!(
+            "appchain updated with chain_spec_url={}, chain_spec_hash={}.",
+            self.appchains.get(&appchain_id).unwrap().chain_spec_url,
+            self.appchains.get(&appchain_id).unwrap().chain_spec_hash
+        );
     }
 
     pub fn get_appchains(&self, from_index: u32, limit: u32) -> Vec<&Appchain> {
@@ -251,16 +254,16 @@ impl OctopusRelay {
     }
 
     /// Returns the total staking balance.
-    pub fn get_total_staked_balance(&self) -> u128 {
-        self.total_staked_balance
+    pub fn get_total_staked_balance(&self) -> U128 {
+        U128::from(self.total_staked_balance)
     }
 
     pub fn get_owner(&self) -> AccountId {
         self.owner.clone()
     }
 
-    pub fn get_minium_staking_amount(&self) -> u128 {
-        self.minium_staking_amount
+    pub fn get_minium_staking_amount(&self) -> U128 {
+        U128::from(self.minium_staking_amount)
     }
 
     pub fn get_appchain_minium_validators(&self) -> u32 {
@@ -431,7 +434,7 @@ impl OctopusRelay {
         account_id: AccountId,
         amount: U128,
     ) {
-        let amount: u128 = amount.into();
+        let amount: u128 = amount.0;
         match env::promise_result(0) {
             PromiseResult::Successful(_) => {
                 let mut appchain = self
@@ -463,10 +466,7 @@ impl OctopusRelay {
         let account_id = env::signer_account_id();
 
         // Only admin can do this
-        assert!(
-            account_id == self.owner,
-            "You're not the relay admin"
-        );
+        assert!(account_id == self.owner, "You're not the relay admin");
 
         // Can only active a frozen appchain
         assert!(
@@ -490,18 +490,15 @@ impl OctopusRelay {
 
     pub fn freeze_appchain(&mut self, appchain_id: u32) {
         let mut appchain = self
-        .appchains
-        .get(&appchain_id)
-        .cloned()
-        .expect("Appchain not found");
+            .appchains
+            .get(&appchain_id)
+            .cloned()
+            .expect("Appchain not found");
 
         let account_id = env::signer_account_id();
 
         // Only admin can do this
-        assert!(
-            account_id == self.owner,
-            "You're not the relay admin"
-        );
+        assert!(account_id == self.owner, "You're not the relay admin");
 
         // Check status
         assert!(
