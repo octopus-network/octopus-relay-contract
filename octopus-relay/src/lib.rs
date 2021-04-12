@@ -82,8 +82,12 @@ pub struct Appchain {
     pub id: u32,
     pub founder_id: AccountId,
     pub appchain_name: String,
+    pub website_url: String,
+    pub github_address: String,
     pub chain_spec_url: String,
     pub chain_spec_hash: String,
+    pub boot_nodes: String,
+    pub rpc_endpoint: String,
     pub bond_tokens: u128,
     pub validator_set: HashMap<u32, ValidatorSet>,
     pub validators: Vec<Validator>,
@@ -153,8 +157,14 @@ impl OctopusRelay {
 
         match msg_vec.get(0).unwrap().as_str() {
             "register_appchain" => {
-                assert_eq!(msg_vec.len(), 2, "params length wrong!");
-                self.register_appchain(msg_vec.get(1).unwrap().to_string(), amount.0);
+                assert_eq!(msg_vec.len(), 4, "params length wrong!");
+                self.register_appchain(
+                    msg_vec.get(1).unwrap().to_string(), 
+                    msg_vec.get(2).unwrap().to_string(), 
+                    msg_vec.get(3).unwrap().to_string(), 
+                    amount.0,
+
+                );
                 PromiseOrValue::Value(U128::from(0))
             }
             "staking" => {
@@ -178,7 +188,7 @@ impl OctopusRelay {
         }
     }
 
-    fn register_appchain(&mut self, appchain_name: String, bond_tokens: u128) {
+    fn register_appchain(&mut self, appchain_name: String, website_url: String, github_address: String, bond_tokens: u128) {
         let account_id = env::signer_account_id();
         let appchain_id = self.appchains.len() as u32;
 
@@ -195,9 +205,13 @@ impl OctopusRelay {
         let appchain = Appchain {
             id: appchain_id,
             founder_id: account_id.clone(),
-            appchain_name: appchain_name.clone(),
+            appchain_name,
+            website_url,
+            github_address,
             chain_spec_url: String::from(""),
             chain_spec_hash: String::from(""),
+            boot_nodes: String::from(""),
+            rpc_endpoint: String::from(""),
             bond_tokens,
             validator_set: validator_hash_map,
             validators: Vec::default(),
@@ -216,6 +230,8 @@ impl OctopusRelay {
     pub fn update_appchain(
         &mut self,
         appchain_id: u32,
+        website_url: String,
+        github_address: String,
         chain_spec_url: String,
         chain_spec_hash: String,
     ) {
@@ -232,15 +248,16 @@ impl OctopusRelay {
             account_id == appchain.founder_id,
             "You aren't the appchain founder!"
         );
+
         appchain.chain_spec_url = chain_spec_url;
         appchain.chain_spec_hash = chain_spec_hash;
+        appchain.website_url = website_url;
+        appchain.github_address = github_address;
+
         appchain.status = AppchainStatus::Frozen;
+
         self.appchains.insert(appchain_id, appchain);
-        log!(
-            "appchain updated with chain_spec_url={}, chain_spec_hash={}.",
-            self.appchains.get(&appchain_id).unwrap().chain_spec_url,
-            self.appchains.get(&appchain_id).unwrap().chain_spec_hash
-        );
+     
     }
 
     pub fn get_appchains(&self, from_index: u32, limit: u32) -> Vec<&Appchain> {
@@ -457,7 +474,7 @@ impl OctopusRelay {
         };
     }
 
-    pub fn active_appchain(&mut self, appchain_id: u32) {
+    pub fn active_appchain(&mut self, appchain_id: u32, boot_nodes: String, rpc_endpoint: String) {
         let mut appchain = self
             .appchains
             .get(&appchain_id)
@@ -480,6 +497,8 @@ impl OctopusRelay {
         );
 
         appchain.status = AppchainStatus::Active;
+        appchain.boot_nodes = boot_nodes;
+        appchain.rpc_endpoint = rpc_endpoint;
 
         // Update state
         self.appchains.insert(appchain_id, appchain);
