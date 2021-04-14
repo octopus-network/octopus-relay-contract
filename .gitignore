@@ -1,4 +1,6 @@
 /target
 /neardev
-/out
-/res
+out/*
+res/*
+
+!.gitkeep

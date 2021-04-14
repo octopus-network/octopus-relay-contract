@@ -69,7 +69,6 @@ pub fn init(
             RELAY_ID.into(),
             "new",
             &json!({
-                "owner": root.valid_account_id(),
                 "token_contract_id": oct.valid_account_id(),
                 "appchain_minium_validators": appchain_minium_validators,
                 "minium_staking_amount": U128::from(minium_staking_amount)

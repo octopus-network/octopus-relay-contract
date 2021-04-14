@@ -4,8 +4,8 @@ use near_sdk::json_types::{ValidAccountId, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::serde_json::json;
 use near_sdk::{
-    env, log, near_bindgen, wee_alloc, AccountId, Balance, BlockHeight, PromiseOrValue,
-    PromiseResult,
+    assert_self, env, log, near_bindgen, wee_alloc, AccountId, Balance, BlockHeight,
+    PromiseOrValue, PromiseResult,
 };
 use std::collections::HashMap;
 
@@ -100,7 +100,6 @@ pub struct Appchain {
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OctopusRelay {
-    owner: AccountId,
     token_contract_id: AccountId,
     appchains: HashMap<u32, Appchain>,
     appchain_minium_validators: u32,
@@ -118,14 +117,13 @@ impl Default for OctopusRelay {
 impl OctopusRelay {
     #[init]
     pub fn new(
-        owner: AccountId,
         token_contract_id: AccountId,
         appchain_minium_validators: u32,
         minium_staking_amount: U128,
     ) -> Self {
         assert!(!env::state_exists(), "The contract is already initialized");
+        assert_self();
         Self {
-            owner,
             token_contract_id,
             appchains: HashMap::default(),
             total_staked_balance: 0,
@@ -159,11 +157,10 @@ impl OctopusRelay {
             "register_appchain" => {
                 assert_eq!(msg_vec.len(), 4, "params length wrong!");
                 self.register_appchain(
-                    msg_vec.get(1).unwrap().to_string(), 
-                    msg_vec.get(2).unwrap().to_string(), 
-                    msg_vec.get(3).unwrap().to_string(), 
+                    msg_vec.get(1).unwrap().to_string(),
+                    msg_vec.get(2).unwrap().to_string(),
+                    msg_vec.get(3).unwrap().to_string(),
                     amount.0,
-
                 );
                 PromiseOrValue::Value(U128::from(0))
             }
@@ -188,7 +185,13 @@ impl OctopusRelay {
         }
     }
 
-    fn register_appchain(&mut self, appchain_name: String, website_url: String, github_address: String, bond_tokens: u128) {
+    fn register_appchain(
+        &mut self,
+        appchain_name: String,
+        website_url: String,
+        github_address: String,
+        bond_tokens: u128,
+    ) {
         let account_id = env::signer_account_id();
         let appchain_id = self.appchains.len() as u32;
 
@@ -257,7 +260,6 @@ impl OctopusRelay {
         appchain.status = AppchainStatus::Frozen;
 
         self.appchains.insert(appchain_id, appchain);
-     
     }
 
     pub fn get_appchains(&self, from_index: u32, limit: u32) -> Vec<&Appchain> {
@@ -273,10 +275,6 @@ impl OctopusRelay {
     /// Returns the total staking balance.
     pub fn get_total_staked_balance(&self) -> U128 {
         U128::from(self.total_staked_balance)
-    }
-
-    pub fn get_owner(&self) -> AccountId {
-        self.owner.clone()
     }
 
     pub fn get_minium_staking_amount(&self) -> U128 {
@@ -480,10 +478,9 @@ impl OctopusRelay {
             .get(&appchain_id)
             .cloned()
             .expect("Appchain not found");
-        let account_id = env::signer_account_id();
 
         // Only admin can do this
-        assert!(account_id == self.owner, "You're not the relay admin");
+        assert_self();
 
         // Can only active a frozen appchain
         assert!(
@@ -514,10 +511,7 @@ impl OctopusRelay {
             .cloned()
             .expect("Appchain not found");
 
-        let account_id = env::signer_account_id();
-
-        // Only admin can do this
-        assert!(account_id == self.owner, "You're not the relay admin");
+        assert_self();
 
         // Check status
         assert!(
