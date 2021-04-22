@@ -55,4 +55,19 @@ near call $TOKEN_CONTRACT_ID storage_deposit  '{"account_id": "'$CONTRACT_ID'"}'
 
 # Registry appchain
 near call $TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$CONTRACT_ID'", "amount": "200000000000000000000000000", "msg": "register_appchain,your_appchain_name,website_url,github_address"}' --accountId $SIGNER --amount 0.000000000000000000000001
+
+# View appchain
+near view $CONTRACT_ID get_appchain '{"appchain_id": 0}'
+
+# Staking
+near call $TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$CONTRACT_ID'", "amount": "200000000000000000000000000", "msg": "staking,0,validator_id0"}' --accountId $SIGNER --amount 0.000000000000000000000001
+
+# View current validators(Not finalized)
+near view $CONTRACT_ID get_validators '{"appchain_id": 0}'
+
+# Get finalized validator_set
+near view $CONTRACT_ID get_validator_set '{"appchain_id": 0}'
+
+# Get validator_set by sequence number
+near view $CONTRACT_ID get_validator_set_by_seq_num '{"appchain_id": 0, "seq_num": 0}'
 ```

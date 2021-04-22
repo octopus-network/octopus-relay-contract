@@ -2,7 +2,7 @@ use crate::utils::{init, register_user};
 use near_sdk::json_types::U128;
 use near_sdk::serde_json::json;
 use near_sdk_sim::{to_yocto, ExecutionResult, UserAccount, DEFAULT_GAS};
-use octopus_relay::{Appchain, AppchainStatus, ValidatorSet};
+use octopus_relay::types::{Appchain, AppchainStatus, ValidatorSet};
 
 const initial_balance_str: &str = "100000";
 const appchain_minium_validators: u32 = 3;
@@ -102,27 +102,27 @@ fn simulate_register_appchain() {
 
     assert_eq!(num_appchains, 1);
 
-    // let appchain_option: Option<Appchain> = root
-    //     .view(
-    //         relay.account_id(),
-    //         "get_appchain",
-    //         &json!({
-    //             "appchain_id": 0
-    //         })
-    //         .to_string()
-    //         .into_bytes(),
-    //     )
-    //     .unwrap_json();
-    // println!("{:#?}", appchain_option);
-    // let appchain = appchain_option.unwrap();
-    // assert_eq!(appchain.id, 0);
-    // assert_eq!(appchain.founder_id, root.account_id());
-    // assert_eq!(appchain.appchain_name, String::from("testchain"));
-    // assert_eq!(appchain.chain_spec_url, String::from(""));
-    // assert_eq!(appchain.chain_spec_hash, String::from(""));
-    // assert_eq!(appchain.bond_tokens, transfer_amount);
-    // assert_eq!(appchain.validators, Vec::default());
-    // assert_eq!(appchain.status, AppchainStatus::InProgress);
+    let appchain_option: Option<Appchain> = root
+        .view(
+            relay.account_id(),
+            "get_appchain",
+            &json!({
+                "appchain_id": 0
+            })
+            .to_string()
+            .into_bytes(),
+        )
+        .unwrap_json();
+    println!("{:#?}", appchain_option);
+    let appchain = appchain_option.unwrap();
+    assert_eq!(appchain.id, 0);
+    assert_eq!(appchain.founder_id, root.account_id());
+    assert_eq!(appchain.appchain_name, String::from("testchain"));
+    assert_eq!(appchain.chain_spec_url, String::from(""));
+    assert_eq!(appchain.chain_spec_hash, String::from(""));
+    assert_eq!(appchain.bond_tokens, U128::from(transfer_amount));
+    assert_eq!(appchain.validators.len(), 0);
+    assert_eq!(appchain.status, AppchainStatus::InProgress);
 }
 
 #[test]
