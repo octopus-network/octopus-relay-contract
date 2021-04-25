@@ -36,7 +36,7 @@ pub struct Delegation {
 pub struct Validator {
     pub id: String,
     pub account_id: AccountId,
-    pub weight: U128,
+    pub weight: u32,
     pub staked_amount: U128,
     pub block_height: BlockHeight,
     pub delegations: Vec<Delegation>,
@@ -47,7 +47,7 @@ pub struct Validator {
 pub struct LiteValidator {
     pub id: String,
     pub account_id: AccountId,
-    pub weight: U128,
+    pub weight: u32,
     pub block_height: BlockHeight,
     pub delegations: Vec<Delegation>,
 }
@@ -57,7 +57,7 @@ impl Default for LiteValidator {
         Self {
             id: String::from(""),
             account_id: AccountId::from(""),
-            weight: U128::from(0),
+            weight: 0 as u32,
             block_height: 0,
             delegations: vec![],
         }

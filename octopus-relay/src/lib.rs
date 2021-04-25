@@ -17,6 +17,7 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 const NO_DEPOSIT: Balance = 0;
 const SINGLE_CALL_GAS: u64 = 50_000_000_000_000;
+const DECIMALS_BASE: Balance = 1000_000_000_000_000_000_000_000;
 
 pub type AppchainId = u32;
 pub type ValidatorId = String;
@@ -53,7 +54,7 @@ pub struct OctopusRelay {
 
     // data for Validator
     validator_data_account_id: HashMap<(AppchainId, ValidatorId), AccountId>,
-    validator_data_weight: HashMap<(AppchainId, ValidatorId), Balance>,
+    validator_data_weight: HashMap<(AppchainId, ValidatorId), u32>,
     validator_data_staked_amount: HashMap<(AppchainId, ValidatorId), Balance>,
     validator_data_block_height: HashMap<(AppchainId, ValidatorId), BlockHeight>,
     validator_data_delegation_ids: HashMap<(AppchainId, ValidatorId), Vec<AccountId>>,
@@ -358,7 +359,7 @@ impl OctopusRelay {
                 delegations: v.delegations.clone(),
             })
             .collect();
-        validators.sort_by(|a, b| b.weight.0.cmp(&a.weight.0));
+        validators.sort_by(|a, b| b.weight.cmp(&a.weight));
         if today_days - validators_days > 0 {
             return Some(ValidatorSet {
                 seq_num,
@@ -381,9 +382,7 @@ impl OctopusRelay {
             Some(Validator {
                 id: validator_id.clone(),
                 account_id: account_id_option.unwrap().to_string(),
-                weight: U128::from(
-                    self.validator_data_weight[&(appchain_id, validator_id.clone())],
-                ),
+                weight: self.validator_data_weight[&(appchain_id, validator_id.clone())],
                 staked_amount: U128::from(
                     self.validator_data_staked_amount[&(appchain_id, validator_id.clone())],
                 ),
@@ -469,6 +468,8 @@ impl OctopusRelay {
             "Insufficient staking amount"
         );
 
+        let weight = (amount / DECIMALS_BASE) as u32;
+
         if !self.appchain_data_name.contains_key(&appchain_id) {
             panic!("Appchain not found");
         }
@@ -484,7 +485,7 @@ impl OctopusRelay {
         self.validator_data_account_id
             .insert((appchain_id, id.clone()), account_id);
         self.validator_data_weight
-            .insert((appchain_id, id.clone()), amount);
+            .insert((appchain_id, id.clone()), weight);
         self.validator_data_staked_amount
             .insert((appchain_id, id.clone()), amount);
         self.validator_data_block_height
@@ -517,6 +518,8 @@ impl OctopusRelay {
             "Insufficient staking amount"
         );
 
+        let weight = (amount / DECIMALS_BASE) as u32;
+
         let mut validators = self
             .get_validators(appchain_id)
             .expect("Appchain not found");
@@ -532,7 +535,7 @@ impl OctopusRelay {
                 self.validator_data_staked_amount
                     .insert((appchain_id, v.id.clone()), v.staked_amount.0 + amount);
                 self.validator_data_weight
-                    .insert((appchain_id, v.id.clone()), v.weight.0 + amount);
+                    .insert((appchain_id, v.id.clone()), v.weight + weight);
                 found = true;
             }
         }
@@ -599,7 +602,6 @@ impl OctopusRelay {
         let amount: u128 = amount.0;
         match env::promise_result(0) {
             PromiseResult::Successful(_) => {
-                // let mut appchain = self.get_appchain(appchain_id).expect("Appchain not found");
                 let mut validator_ids = self
                     .appchain_data_validator_ids
                     .get(&appchain_id)
