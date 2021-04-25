@@ -163,7 +163,7 @@ impl OctopusRelay {
                     msg_vec.get(3).unwrap().to_string(),
                     amount.0,
                 );
-                PromiseOrValue::Value(U128::from(0))
+                PromiseOrValue::Value(0.into())
             }
             "staking" => {
                 assert_eq!(msg_vec.len(), 3, "params length wrong!");
@@ -172,12 +172,12 @@ impl OctopusRelay {
                     msg_vec.get(2).unwrap().to_string(),
                     amount.0,
                 );
-                PromiseOrValue::Value(U128::from(0))
+                PromiseOrValue::Value(0.into())
             }
             "staking_more" => {
                 assert_eq!(msg_vec.len(), 2, "params length wrong!");
                 self.staking_more(msg_vec.get(1).unwrap().parse::<u32>().unwrap(), amount.0);
-                PromiseOrValue::Value(U128::from(0))
+                PromiseOrValue::Value(0.into())
             }
             _ => {
                 log!("Function name not matched, msg = {}", msg);
@@ -275,11 +275,11 @@ impl OctopusRelay {
 
     /// Returns the total staking balance.
     pub fn get_total_staked_balance(&self) -> U128 {
-        U128::from(self.total_staked_balance)
+        self.total_staked_balance.into()
     }
 
     pub fn get_minium_staking_amount(&self) -> U128 {
-        U128::from(self.minium_staking_amount)
+        self.minium_staking_amount.into()
     }
 
     pub fn get_appchain(&self, appchain_id: AppchainId) -> Option<Appchain> {
@@ -323,12 +323,12 @@ impl OctopusRelay {
                     .get(&appchain_id)
                     .unwrap_or(&String::from(""))
                     .clone(),
-                bond_tokens: U128::from(
-                    self.appchain_data_bond_tokens
-                        .get(&appchain_id)
-                        .unwrap()
-                        .clone(),
-                ),
+                bond_tokens: self
+                    .appchain_data_bond_tokens
+                    .get(&appchain_id)
+                    .unwrap()
+                    .clone()
+                    .into(),
                 validators: self.get_validators(appchain_id).unwrap_or_default(),
                 status: self.appchain_data_status.get(&appchain_id).unwrap().clone(),
                 block_height: self
@@ -403,9 +403,9 @@ impl OctopusRelay {
                 id: validator_id.clone(),
                 account_id: account_id_option.unwrap().to_string(),
                 weight: self.validator_data_weight[&(appchain_id, validator_id.clone())],
-                staked_amount: U128::from(
-                    self.validator_data_staked_amount[&(appchain_id, validator_id.clone())],
-                ),
+                staked_amount: self.validator_data_staked_amount
+                    [&(appchain_id, validator_id.clone())]
+                    .into(),
                 block_height: self.validator_data_block_height
                     [&(appchain_id, validator_id.clone())],
                 delegations: self.validator_data_delegation_ids
@@ -437,10 +437,9 @@ impl OctopusRelay {
             Some(Delegation {
                 id: delegator_id.clone(),
                 account_id: account_id_option.unwrap().to_string(),
-                amount: U128::from(
-                    self.delegation_data_amount
-                        [&(appchain_id, validator_id.clone(), delegator_id.clone())],
-                ),
+                amount: self.delegation_data_amount
+                    [&(appchain_id, validator_id.clone(), delegator_id.clone())]
+                    .into(),
                 block_height: self.delegation_data_block_height
                     [&(appchain_id, validator_id, delegator_id)],
             })
