@@ -71,6 +71,12 @@ pub struct OctopusRelay {
 #[ext_contract(ext_self)]
 pub trait ExtCrossContract {
     fn resolve_unstaking(&mut self, appchain_id: AppchainId, account_id: AccountId, amount: U128);
+    fn resolve_activate_appchain(
+        &mut self,
+        appchain_id: AppchainId,
+        boot_nodes: String,
+        rpc_endpoint: String,
+    );
 }
 
 #[ext_contract(ext_oct_token)]
@@ -197,7 +203,9 @@ impl OctopusRelay {
         let appchain_id = self.appchain_data_name.len() as u32;
 
         assert!(
-            self.is_appchain_name_registered[&appchain_name],
+            !self
+                .is_appchain_name_registered
+                .contains_key(&appchain_name),
             "Appchain_name is already registered"
         );
 
@@ -633,10 +641,8 @@ impl OctopusRelay {
         if !self.appchain_data_name.contains_key(&appchain_id) {
             panic!("Appchain not found");
         }
-
         // Only admin can do this
         assert_self();
-
         // Can only activate a frozen appchain
         assert!(
             self.appchain_data_status[&appchain_id] == AppchainStatus::Frozen,
@@ -649,6 +655,32 @@ impl OctopusRelay {
             "Insufficient number of appchain validators"
         );
 
+        let account_id = self.appchain_data_founder_id[&appchain_id].clone();
+        let bond_tokens = self.appchain_data_bond_tokens[&appchain_id];
+        ext_oct_token::ft_transfer(
+            account_id,
+            bond_tokens.into(),
+            None,
+            &self.token_contract_id,
+            1,
+            SINGLE_CALL_GAS,
+        )
+        .then(ext_self::resolve_activate_appchain(
+            appchain_id,
+            boot_nodes,
+            rpc_endpoint,
+            &env::current_account_id(),
+            NO_DEPOSIT,
+            SINGLE_CALL_GAS,
+        ));
+    }
+
+    pub fn resolve_activate_appchain(
+        &mut self,
+        appchain_id: AppchainId,
+        boot_nodes: String,
+        rpc_endpoint: String,
+    ) {
         // Update state
         self.appchain_data_status
             .insert(appchain_id, AppchainStatus::Active);
