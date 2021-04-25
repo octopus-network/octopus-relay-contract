@@ -49,6 +49,8 @@ pub struct OctopusRelay {
     appchain_data_status: HashMap<AppchainId, AppchainStatus>,
     appchain_data_block_height: HashMap<AppchainId, BlockHeight>,
 
+    is_appchain_name_registered: HashMap<String, bool>,
+
     appchain_data_validator_sets_len: HashMap<AppchainId, SeqNum>,
     appchain_data_validator_set: HashMap<(AppchainId, SeqNum), ValidatorSet>,
 
@@ -102,6 +104,8 @@ impl OctopusRelay {
             appchain_data_validators_timestamp: HashMap::default(),
             appchain_data_status: HashMap::default(),
             appchain_data_block_height: HashMap::default(),
+
+            is_appchain_name_registered: HashMap::default(),
 
             appchain_data_validator_sets_len: HashMap::default(),
             appchain_data_validator_set: HashMap::default(),
@@ -183,10 +187,16 @@ impl OctopusRelay {
         let account_id = env::signer_account_id();
         let appchain_id = self.appchain_data_name.len() as u32;
 
+        assert!(
+            self.is_appchain_name_registered[&appchain_name],
+            "Appchain_name is already registered"
+        );
+
         // Default validator set
         self.appchain_data_founder_id
             .insert(appchain_id, account_id);
-        self.appchain_data_name.insert(appchain_id, appchain_name);
+        self.appchain_data_name
+            .insert(appchain_id, appchain_name.clone());
         self.appchain_data_website_url
             .insert(appchain_id, website_url);
         self.appchain_data_github_address
@@ -207,6 +217,7 @@ impl OctopusRelay {
             .insert(appchain_id, AppchainStatus::InProgress);
         self.appchain_data_block_height
             .insert(appchain_id, env::block_index());
+        self.is_appchain_name_registered.insert(appchain_name, true);
         self.appchain_data_validator_sets_len.insert(appchain_id, 0);
         log!(
             "Appchain added, appchain_id is {}, bund_tokens is {}.",
