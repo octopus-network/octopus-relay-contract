@@ -5,10 +5,9 @@ use crate::types::{Appchain, AppchainStatus, Delegation, LiteValidator, Validato
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{ValidAccountId, U128};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::serde_json::json;
 use near_sdk::{
-    assert_self, env, log, near_bindgen, wee_alloc, AccountId, Balance, BlockHeight,
-    PromiseOrValue, PromiseResult,
+    assert_self, env, ext_contract, log, near_bindgen, wee_alloc, AccountId, Balance, BlockHeight,
+    PromiseOrValue,
 };
 use std::collections::HashMap;
 
@@ -67,6 +66,16 @@ pub struct OctopusRelay {
     delegation_data_block_height: HashMap<(AppchainId, ValidatorId, DelegatorId), BlockHeight>,
 
     test_data: HashMap<u32, HashMap<u32, u32>>,
+}
+
+#[ext_contract(ext_self)]
+pub trait ExtCrossContract {
+    fn resolve_unstaking(&mut self, appchain_id: AppchainId, account_id: AccountId, amount: U128);
+}
+
+#[ext_contract(ext_oct_token)]
+pub trait ExtOCTContract {
+    fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
 }
 
 impl Default for OctopusRelay {
@@ -571,72 +580,52 @@ impl OctopusRelay {
             .find(|v| v.account_id == account_id)
             .expect("You are not staked on the appchain");
 
-        // Cross-contract call to transfer OCT token
-        let promise_transfer = env::promise_create(
-            self.token_contract_id.to_string(),
-            b"ft_transfer",
-            json!({
-                "receiver_id": account_id,
-                "amount": U128::from(validator.staked_amount),
-            })
-            .to_string()
-            .as_bytes(),
+        ext_oct_token::ft_transfer(
+            account_id.clone(),
+            validator.staked_amount.into(),
+            None,
+            &self.token_contract_id,
             1,
             SINGLE_CALL_GAS,
-        );
-
-        // Check transfer token result and unstaking
-        let promise_staking = env::promise_then(
-            promise_transfer,
-            env::current_account_id(),
-            b"check_transfer_and_unstaking",
-            json!({
-                "appchain_id": appchain_id,
-                "account_id": account_id,
-                "amount": U128::from(validator.staked_amount),
-            })
-            .to_string()
-            .as_bytes(),
+        )
+        .then(ext_self::resolve_unstaking(
+            appchain_id,
+            account_id,
+            validator.staked_amount.into(),
+            &env::current_account_id(),
             NO_DEPOSIT,
             SINGLE_CALL_GAS,
-        );
-
-        env::promise_return(promise_staking);
+        ));
     }
 
-    pub fn check_transfer_and_unstaking(
+    pub fn resolve_unstaking(
         &mut self,
         appchain_id: AppchainId,
         account_id: AccountId,
         amount: U128,
     ) {
         let amount: u128 = amount.0;
-        match env::promise_result(0) {
-            PromiseResult::Successful(_) => {
-                let mut validator_ids = self
-                    .appchain_data_validator_ids
-                    .get(&appchain_id)
-                    .expect("Appchain not found")
-                    .clone();
+        let mut validator_ids = self
+            .appchain_data_validator_ids
+            .get(&appchain_id)
+            .expect("Appchain not found")
+            .clone();
 
-                // Remove the validator
-                validator_ids.retain(|v| {
-                    self.validator_data_account_id[&(appchain_id, v.to_string())] != account_id
-                });
+        // Remove the validator
+        validator_ids.retain(|v| {
+            self.validator_data_account_id[&(appchain_id, v.to_string())] != account_id
+        });
 
-                // Update state
-                self.appchain_data_validator_ids
-                    .insert(appchain_id, validator_ids);
-                self.total_staked_balance -= amount;
+        // Update state
+        self.appchain_data_validator_ids
+            .insert(appchain_id, validator_ids);
+        self.total_staked_balance -= amount;
 
-                // // Check to update validator set
-                self.update_validator_set(appchain_id);
-            }
-            _ => panic!("Transfer token failed"),
-        };
+        // // Check to update validator set
+        self.update_validator_set(appchain_id);
     }
 
-    pub fn active_appchain(
+    pub fn activate_appchain(
         &mut self,
         appchain_id: AppchainId,
         boot_nodes: String,
@@ -649,7 +638,7 @@ impl OctopusRelay {
         // Only admin can do this
         assert_self();
 
-        // Can only active a frozen appchain
+        // Can only activate a frozen appchain
         assert!(
             self.appchain_data_status[&appchain_id] == AppchainStatus::Frozen,
             "Appchain status incorrect"
