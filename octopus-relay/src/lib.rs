@@ -15,8 +15,11 @@ use std::collections::HashMap;
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 const NO_DEPOSIT: Balance = 0;
-const SINGLE_CALL_GAS: u64 = 50_000_000_000_000;
+const SINGLE_CALL_GAS: u64 = 5_000_000_000_000;
 const DECIMALS_BASE: Balance = 1000_000_000_000_000_000_000_000;
+
+const VALIDATOR_SET_CYCLE: u64 = 60000000000;
+// const VALIDATOR_SET_CYCLE: u64 = 86400000000000;
 
 pub type AppchainId = u32;
 pub type ValidatorId = String;
@@ -69,7 +72,7 @@ pub struct OctopusRelay {
 }
 
 #[ext_contract(ext_self)]
-pub trait ExtCrossContract {
+pub trait ExtOctopusRelay {
     fn resolve_unstaking(&mut self, appchain_id: AppchainId, account_id: AccountId, amount: U128);
     fn resolve_activate_appchain(
         &mut self,
@@ -338,6 +341,11 @@ impl OctopusRelay {
                     .clone()
                     .into(),
                 validators: self.get_validators(appchain_id).unwrap_or_default(),
+                validators_timestamp: self
+                    .appchain_data_validators_timestamp
+                    .get(&appchain_id)
+                    .unwrap_or(&0)
+                    .clone(),
                 status: self.appchain_data_status.get(&appchain_id).unwrap().clone(),
                 block_height: self
                     .appchain_data_block_height
@@ -373,22 +381,22 @@ impl OctopusRelay {
             return None;
         }
         let validators_timestamp = validators_timestamp_option.unwrap();
-        let validators_days = validators_timestamp / 86400000000000;
-        let today_days = env::block_timestamp() / 86400000000000;
-        let mut validators: Vec<LiteValidator> = self
-            .get_validators(appchain_id)
-            .unwrap()
-            .iter()
-            .map(|v| LiteValidator {
-                id: v.id.clone(),
-                account_id: v.account_id.clone(),
-                weight: v.weight,
-                block_height: v.block_height,
-                delegations: v.delegations.clone(),
-            })
-            .collect();
-        validators.sort_by(|a, b| b.weight.cmp(&a.weight));
-        if today_days - validators_days > 0 {
+        let validators_from_unix = validators_timestamp / VALIDATOR_SET_CYCLE;
+        let today_from_unix = env::block_timestamp() / VALIDATOR_SET_CYCLE;
+        if today_from_unix - validators_from_unix > 0 {
+            let mut validators: Vec<LiteValidator> = self
+                .get_validators(appchain_id)
+                .unwrap()
+                .iter()
+                .map(|v| LiteValidator {
+                    id: v.id.clone(),
+                    account_id: v.account_id.clone(),
+                    weight: v.weight,
+                    block_height: v.block_height,
+                    delegations: v.delegations.clone(),
+                })
+                .collect();
+            validators.sort_by(|a, b| b.weight.cmp(&a.weight));
             return Some(ValidatorSet {
                 seq_num,
                 validators,
@@ -487,7 +495,7 @@ impl OctopusRelay {
     }
 
     fn staking(&mut self, appchain_id: AppchainId, id: String, amount: u128) {
-        let account_id = env::predecessor_account_id();
+        let account_id = env::signer_account_id();
 
         // Check amount
         assert!(
@@ -659,7 +667,7 @@ impl OctopusRelay {
         let bond_tokens = self.appchain_data_bond_tokens[&appchain_id];
         ext_oct_token::ft_transfer(
             account_id,
-            bond_tokens.into(),
+            (bond_tokens / 10).into(),
             None,
             &self.token_contract_id,
             1,
@@ -712,6 +720,10 @@ impl OctopusRelay {
     }
 
     fn update_validator_set(&mut self, appchain_id: AppchainId) -> bool {
+        let seq_num = self.get_curr_validator_set_index(appchain_id);
+        let next_seq_num = seq_num + 1;
+        let next_validator_set = self.next_validator_set(appchain_id, next_seq_num);
+
         self.appchain_data_validators_timestamp
             .insert(appchain_id, env::block_timestamp());
 
@@ -719,9 +731,6 @@ impl OctopusRelay {
         if self.appchain_data_status[&appchain_id] != AppchainStatus::Active {
             return false;
         }
-        let seq_num = self.get_curr_validator_set_index(appchain_id);
-        let next_seq_num = seq_num + 1;
-        let next_validator_set = self.next_validator_set(appchain_id, next_seq_num);
 
         if next_validator_set.is_some() {
             if (self.appchain_data_validator_ids[&appchain_id].len() as u32)

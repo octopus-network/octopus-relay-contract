@@ -85,6 +85,7 @@ pub struct Appchain {
     pub rpc_endpoint: String,
     pub bond_tokens: U128,
     pub validators: Vec<Validator>,
+    pub validators_timestamp: u64,
     pub status: AppchainStatus,
     pub block_height: BlockHeight,
 }

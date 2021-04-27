@@ -34,14 +34,14 @@ export TOKEN_CONTRACT_ID=token_account_id
 export SIGNER=your_account_id
 
 # Initialize contract with given council and parameters (this is for testing, where you stil have access key to the contract).
-near call $CONTRACT_ID new '{"token_contract_id": "'$TOKEN_CONTRACT_ID'", "appchain_minium_validators": 2, "minium_staking_amount": "100000000000000000000000000"}' --accountId $CONTRACT_ID
+near call $CONTRACT_ID new '{"token_contract_id": "'$TOKEN_CONTRACT_ID'", "appchain_minium_validators": 1, "minium_staking_amount": "100000000000000000000000000"}' --accountId $CONTRACT_ID
 ```
 
 ### Use test contracts initialized by Octopus
 
 ```bash
 # Set contract Id
-export CONTRACT_ID=dev-1618441266496-9170291
+export CONTRACT_ID=dev-1619541852149-6042040
 
 # Set token contract Id
 export TOKEN_CONTRACT_ID=dev-1618322195294-7281987
@@ -59,14 +59,29 @@ near call $TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$CONTRACT_ID'",
 # View appchain
 near view $CONTRACT_ID get_appchain '{"appchain_id": 0}'
 
+# View number of appchains
+near view $CONTRACT_ID get_num_appchains ''
+
 # Staking
 near call $TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$CONTRACT_ID'", "amount": "200000000000000000000000000", "msg": "staking,0,validator_id0"}' --accountId $SIGNER --amount 0.000000000000000000000001
 
 # View current validators(Not finalized)
 near view $CONTRACT_ID get_validators '{"appchain_id": 0}'
 
+# Update appchain
+near call $CONTRACT_ID update_appchain '{"appchain_id": 0, "website_url": "website_url", "github_address": "github_address", "chain_spec_url": "chain_spec_url", "chain_spec_hash": "chain_spec_hash"}' --accountId $SIGNER
+
+# Activate appchain
+near call $CONTRACT_ID activate_appchain '{"appchain_id": 0, "boot_nodes": "boot_nodes_string", "rpc_endpoint": "rpc_endpoint"}' --accountId $CONTRACT_ID
+
 # Get finalized validator_set
 near view $CONTRACT_ID get_validator_set '{"appchain_id": 0}'
+
+# Staking more
+near call $TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$CONTRACT_ID'", "amount": "200000000000000000000000000", "msg": "staking_more,0"}' --accountId $SIGNER --amount 0.000000000000000000000001
+
+# Get finalized validator_set_index
+near view $CONTRACT_ID get_curr_validator_set_index '{"appchain_id": 0}'
 
 # Get validator_set by sequence number
 near view $CONTRACT_ID get_validator_set_by_seq_num '{"appchain_id": 0, "seq_num": 0}'
