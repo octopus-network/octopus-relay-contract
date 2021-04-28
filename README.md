@@ -41,10 +41,10 @@ near call $CONTRACT_ID new '{"token_contract_id": "'$TOKEN_CONTRACT_ID'", "appch
 
 ```bash
 # Set contract Id
-export CONTRACT_ID=dev-1619541852149-6042040
+export CONTRACT_ID=oct-relay.testnet
 
 # Set token contract Id
-export TOKEN_CONTRACT_ID=dev-1618322195294-7281987
+export TOKEN_CONTRACT_ID=oct-token.testnet
 ```
 
 ### Usage
