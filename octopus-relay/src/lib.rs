@@ -371,11 +371,8 @@ impl OctopusRelay {
             .collect()
     }
 
-    pub fn next_validator_set(
-        &self,
-        appchain_id: AppchainId,
-        seq_num: SeqNum,
-    ) -> Option<ValidatorSet> {
+    pub fn next_validator_set(&self, appchain_id: AppchainId) -> Option<ValidatorSet> {
+        let seq_num = self.get_curr_validator_set_len(appchain_id);
         let validators_timestamp_option = self.appchain_data_validators_timestamp.get(&appchain_id);
         if !validators_timestamp_option.is_some() {
             return None;
@@ -466,16 +463,24 @@ impl OctopusRelay {
 
     // Returns the appchain current validator_set index
     pub fn get_curr_validator_set_index(&self, appchain_id: AppchainId) -> u32 {
-        self.appchain_data_validator_sets_len[&appchain_id] - 1
+        self.get_curr_validator_set_len(appchain_id) - 1
+    }
+
+    // Returns the appchain current validator_set len
+    pub fn get_curr_validator_set_len(&self, appchain_id: AppchainId) -> u32 {
+        self.appchain_data_validator_sets_len[&appchain_id]
     }
 
     pub fn get_validator_set(&self, appchain_id: AppchainId) -> Option<ValidatorSet> {
-        let seq_num = self.get_curr_validator_set_index(appchain_id);
-        let next_validator_set = self.next_validator_set(appchain_id, seq_num + 1);
+        let next_validator_set = self.next_validator_set(appchain_id);
         if next_validator_set.is_some() {
             next_validator_set
         } else {
-            self.get_validator_set_by_seq_num(appchain_id, seq_num)
+            let validator_set_len = self.get_curr_validator_set_len(appchain_id);
+            if validator_set_len == 0 {
+                return None;
+            }
+            self.get_validator_set_by_seq_num(appchain_id, validator_set_len - 1)
         }
     }
 
@@ -484,13 +489,13 @@ impl OctopusRelay {
         appchain_id: AppchainId,
         seq_num: u32,
     ) -> Option<ValidatorSet> {
-        let validator_set_option = self
-            .appchain_data_validator_set
-            .get(&(appchain_id, seq_num));
-        if validator_set_option.is_some() {
-            Some(validator_set_option.unwrap().clone())
+        if seq_num == self.get_curr_validator_set_len(appchain_id) {
+            return self.next_validator_set(appchain_id);
         } else {
-            None
+            return self
+                .appchain_data_validator_set
+                .get(&(appchain_id, seq_num))
+                .cloned();
         }
     }
 
@@ -720,9 +725,7 @@ impl OctopusRelay {
     }
 
     fn update_validator_set(&mut self, appchain_id: AppchainId) -> bool {
-        let seq_num = self.get_curr_validator_set_index(appchain_id);
-        let next_seq_num = seq_num + 1;
-        let next_validator_set = self.next_validator_set(appchain_id, next_seq_num);
+        let next_validator_set_option = self.next_validator_set(appchain_id);
 
         self.appchain_data_validators_timestamp
             .insert(appchain_id, env::block_timestamp());
@@ -732,25 +735,27 @@ impl OctopusRelay {
             return false;
         }
 
-        if next_validator_set.is_some() {
+        if next_validator_set_option.is_some() {
+            let next_validator_set = next_validator_set_option.unwrap();
+            let seq_num = next_validator_set.seq_num;
             if (self.appchain_data_validator_ids[&appchain_id].len() as u32)
                 < self.appchain_minium_validators
             {
                 self.appchain_data_status
                     .insert(appchain_id, AppchainStatus::Frozen);
                 self.appchain_data_validator_set.insert(
-                    (appchain_id, next_seq_num),
+                    (appchain_id, seq_num),
                     ValidatorSet {
-                        seq_num: next_seq_num,
+                        seq_num: seq_num,
                         validators: vec![],
                     },
                 );
             } else {
                 self.appchain_data_validator_set
-                    .insert((appchain_id, next_seq_num), next_validator_set.unwrap());
+                    .insert((appchain_id, seq_num), next_validator_set);
             }
             self.appchain_data_validator_sets_len
-                .insert(appchain_id, next_seq_num + 1);
+                .insert(appchain_id, seq_num + 1);
         }
 
         true

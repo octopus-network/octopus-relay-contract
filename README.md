@@ -83,6 +83,6 @@ near call $TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$CONTRACT_ID'",
 # Get finalized validator_set_index
 near view $CONTRACT_ID get_curr_validator_set_index '{"appchain_id": 0}'
 
-# Get validator_set by sequence number
+# Get finalized validator_set by sequence number
 near view $CONTRACT_ID get_validator_set_by_seq_num '{"appchain_id": 0, "seq_num": 0}'
 ```

@@ -2,7 +2,7 @@ use crate::utils::{init, register_user};
 use near_sdk::json_types::U128;
 use near_sdk::serde_json::json;
 use near_sdk_sim::{to_yocto, ExecutionResult, UserAccount, DEFAULT_GAS};
-use octopus_relay::types::{Appchain, AppchainStatus, ValidatorSet};
+use octopus_relay::types::{Appchain, AppchainStatus, Validator, ValidatorSet};
 
 const initial_balance_str: &str = "100000";
 const appchain_minium_validators: u32 = 3;
@@ -155,6 +155,22 @@ fn simulate_update_appchain() {
 fn simulate_staking() {
     let (root, oct, relay, _) = default_init();
     default_register_appchain(&root, &oct, &relay);
-    let (outcome, transfer_amount) = default_register_appchain(&root, &oct, &relay);
+    let (outcome, transfer_amount) = default_staking(&root, &oct, &relay);
     outcome.assert_success();
+    let validators: Vec<Validator> = root
+        .view(
+            relay.account_id(),
+            "get_validators",
+            &json!({
+                "appchain_id": 0
+            })
+            .to_string()
+            .into_bytes(),
+        )
+        .unwrap_json();
+    let validator = validators.get(0).unwrap();
+    assert_eq!(validator.id, "validator_id");
+    assert_eq!(validator.account_id, "root");
+    assert_eq!(validator.weight, 200);
+    assert_eq!(validator.staked_amount, U128::from(to_yocto("200")));
 }
