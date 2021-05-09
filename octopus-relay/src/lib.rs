@@ -701,6 +701,7 @@ impl OctopusRelay {
             .insert(appchain_id, boot_nodes);
         self.appchain_data_rpc_endpoint
             .insert(appchain_id, rpc_endpoint);
+        self.appchain_data_bond_tokens.insert(appchain_id, 0);
 
         // Check to update validator set
         self.update_validator_set(appchain_id);
