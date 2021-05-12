@@ -85,4 +85,14 @@ near view $CONTRACT_ID get_curr_validator_set_index '{"appchain_id": 0}'
 
 # Get finalized validator_set by sequence number
 near view $CONTRACT_ID get_validator_set_by_seq_num '{"appchain_id": 0, "seq_num": 0}'
+
+# Register bridge_token, 1000000 means 1.000000 usd
+near call $CONTRACT_ID register_bridge_token '{"token_id": "test_id", "symbol": "test_symbol", "price": "1000000"}' --accountId $CONTRACT_ID
+
+# view bridge_token
+near view $CONTRACT_ID get_bridge_token '{"token_id": "test_id"}'
+
+# view bridge_allowance
+near view $CONTRACT_ID get_bridge_allowance '{"appchain_id": 0, "token_id": "test_id", "amount": "100000000000000000000000000"}'
+
 ```

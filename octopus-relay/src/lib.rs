@@ -1,21 +1,23 @@
 pub mod types;
 
 // To conserve gas, efficient serialization is achieved through Borsh (http://borsh.io/)
-use crate::types::{Appchain, AppchainStatus, Delegation, LiteValidator, Validator, ValidatorSet};
+use crate::types::{
+    Appchain, AppchainStatus, BridgeToken, Delegation, LiteValidator, Validator, ValidatorSet,
+};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::collections::{LookupMap, UnorderedMap};
 use near_sdk::json_types::{ValidAccountId, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     assert_self, env, ext_contract, log, near_bindgen, wee_alloc, AccountId, Balance, BlockHeight,
     PromiseOrValue,
 };
-use std::collections::HashMap;
 
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 const NO_DEPOSIT: Balance = 0;
-const SINGLE_CALL_GAS: u64 = 5_000_000_000_000;
+const SINGLE_CALL_GAS: u64 = 10_000_000_000_000;
 const DECIMALS_BASE: Balance = 1000_000_000_000_000_000_000_000;
 
 const VALIDATOR_SET_CYCLE: u64 = 60000000000;
@@ -31,44 +33,51 @@ pub type SeqNum = u32;
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OctopusRelay {
-    token_contract_id: AccountId,
-    appchain_minium_validators: u32,
-    minium_staking_amount: u128,
-    total_staked_balance: u128,
+    pub token_contract_id: AccountId,
+    pub appchain_minium_validators: u32,
+    pub minium_staking_amount: u128,
+    pub total_staked_balance: u128,
+    pub appchain_len: u32,
 
     // data for Appchain
-    appchain_data_founder_id: HashMap<AppchainId, AccountId>,
-    appchain_data_name: HashMap<AppchainId, String>,
-    appchain_data_website_url: HashMap<AppchainId, String>,
-    appchain_data_github_address: HashMap<AppchainId, String>,
-    appchain_data_chain_spec_url: HashMap<AppchainId, String>,
-    appchain_data_chain_spec_hash: HashMap<AppchainId, String>,
-    appchain_data_boot_nodes: HashMap<AppchainId, String>,
-    appchain_data_rpc_endpoint: HashMap<AppchainId, String>,
-    appchain_data_bond_tokens: HashMap<AppchainId, Balance>,
-    appchain_data_validator_ids: HashMap<AppchainId, Vec<ValidatorId>>,
-    appchain_data_validators_timestamp: HashMap<AppchainId, u64>,
-    appchain_data_status: HashMap<AppchainId, AppchainStatus>,
-    appchain_data_block_height: HashMap<AppchainId, BlockHeight>,
+    pub appchain_data_founder_id: LookupMap<AppchainId, AccountId>,
+    pub appchain_data_name: LookupMap<AppchainId, String>,
+    pub appchain_data_website_url: LookupMap<AppchainId, String>,
+    pub appchain_data_github_address: LookupMap<AppchainId, String>,
+    pub appchain_data_chain_spec_url: LookupMap<AppchainId, String>,
+    pub appchain_data_chain_spec_hash: LookupMap<AppchainId, String>,
+    pub appchain_data_boot_nodes: LookupMap<AppchainId, String>,
+    pub appchain_data_rpc_endpoint: LookupMap<AppchainId, String>,
+    pub appchain_data_bond_tokens: LookupMap<AppchainId, Balance>,
+    pub appchain_data_validator_ids: LookupMap<AppchainId, Vec<ValidatorId>>,
+    pub appchain_data_validators_timestamp: LookupMap<AppchainId, u64>,
+    pub appchain_data_status: LookupMap<AppchainId, AppchainStatus>,
+    pub appchain_data_block_height: LookupMap<AppchainId, BlockHeight>,
 
-    is_appchain_name_registered: HashMap<String, bool>,
+    pub is_appchain_name_registered: LookupMap<String, bool>,
 
-    appchain_data_validator_sets_len: HashMap<AppchainId, SeqNum>,
-    appchain_data_validator_set: HashMap<(AppchainId, SeqNum), ValidatorSet>,
+    pub appchain_data_validator_sets_len: LookupMap<AppchainId, SeqNum>,
+    pub appchain_data_validator_set: LookupMap<(AppchainId, SeqNum), ValidatorSet>,
 
     // data for Validator
-    validator_data_account_id: HashMap<(AppchainId, ValidatorId), AccountId>,
-    validator_data_weight: HashMap<(AppchainId, ValidatorId), u32>,
-    validator_data_staked_amount: HashMap<(AppchainId, ValidatorId), Balance>,
-    validator_data_block_height: HashMap<(AppchainId, ValidatorId), BlockHeight>,
-    validator_data_delegation_ids: HashMap<(AppchainId, ValidatorId), Vec<AccountId>>,
+    pub validator_data_account_id: LookupMap<(AppchainId, ValidatorId), AccountId>,
+    pub validator_data_weight: LookupMap<(AppchainId, ValidatorId), u32>,
+    pub validator_data_staked_amount: LookupMap<(AppchainId, ValidatorId), Balance>,
+    pub validator_data_block_height: LookupMap<(AppchainId, ValidatorId), BlockHeight>,
+    pub validator_data_delegation_ids: LookupMap<(AppchainId, ValidatorId), Vec<AccountId>>,
 
     // data for Delegation
-    delegation_data_amount: HashMap<(AppchainId, ValidatorId, DelegatorId), Balance>,
-    delegation_data_account_id: HashMap<(AppchainId, ValidatorId, DelegatorId), AccountId>,
-    delegation_data_block_height: HashMap<(AppchainId, ValidatorId, DelegatorId), BlockHeight>,
+    pub delegation_data_amount: LookupMap<(AppchainId, ValidatorId, DelegatorId), Balance>,
+    pub delegation_data_account_id: LookupMap<(AppchainId, ValidatorId, DelegatorId), AccountId>,
+    pub delegation_data_block_height:
+        LookupMap<(AppchainId, ValidatorId, DelegatorId), BlockHeight>,
 
-    test_data: HashMap<u32, HashMap<u32, u32>>,
+    pub bridge_token_data_symbol: LookupMap<AccountId, String>,
+    pub bridge_symbol_to_token: LookupMap<String, AccountId>,
+    pub bridge_token_data_active: LookupMap<AccountId, bool>,
+    pub bridge_token_data_price: LookupMap<AccountId, Balance>,
+
+    pub bridge_owner: AccountId,
 }
 
 #[ext_contract(ext_self)]
@@ -108,37 +117,43 @@ impl OctopusRelay {
             total_staked_balance: 0,
             appchain_minium_validators,
             minium_staking_amount: minium_staking_amount.0,
+            appchain_len: 0,
 
-            appchain_data_founder_id: HashMap::default(),
-            appchain_data_name: HashMap::default(),
-            appchain_data_website_url: HashMap::default(),
-            appchain_data_github_address: HashMap::default(),
-            appchain_data_chain_spec_url: HashMap::default(),
-            appchain_data_chain_spec_hash: HashMap::default(),
-            appchain_data_boot_nodes: HashMap::default(),
-            appchain_data_rpc_endpoint: HashMap::default(),
-            appchain_data_bond_tokens: HashMap::default(),
-            appchain_data_validator_ids: HashMap::default(),
-            appchain_data_validators_timestamp: HashMap::default(),
-            appchain_data_status: HashMap::default(),
-            appchain_data_block_height: HashMap::default(),
+            appchain_data_founder_id: LookupMap::new(b"afi".to_vec()),
+            appchain_data_name: LookupMap::new(b"an".to_vec()),
+            appchain_data_website_url: LookupMap::new(b"wu".to_vec()),
+            appchain_data_github_address: LookupMap::new(b"ga".to_vec()),
+            appchain_data_chain_spec_url: LookupMap::new(b"csu".to_vec()),
+            appchain_data_chain_spec_hash: LookupMap::new(b"csh".to_vec()),
+            appchain_data_boot_nodes: LookupMap::new(b"bn".to_vec()),
+            appchain_data_rpc_endpoint: LookupMap::new(b"re".to_vec()),
+            appchain_data_bond_tokens: LookupMap::new(b"bt".to_vec()),
+            appchain_data_validator_ids: LookupMap::new(b"vi".to_vec()),
+            appchain_data_validators_timestamp: LookupMap::new(b"vt".to_vec()),
+            appchain_data_status: LookupMap::new(b"st".to_vec()),
+            appchain_data_block_height: LookupMap::new(b"abh".to_vec()),
 
-            is_appchain_name_registered: HashMap::default(),
+            is_appchain_name_registered: LookupMap::new(b"ir".to_vec()),
 
-            appchain_data_validator_sets_len: HashMap::default(),
-            appchain_data_validator_set: HashMap::default(),
+            appchain_data_validator_sets_len: LookupMap::new(b"ir".to_vec()),
+            appchain_data_validator_set: LookupMap::new(b"vs".to_vec()),
 
-            validator_data_account_id: HashMap::default(),
-            validator_data_weight: HashMap::default(),
-            validator_data_staked_amount: HashMap::default(),
-            validator_data_block_height: HashMap::default(),
-            validator_data_delegation_ids: HashMap::default(),
+            validator_data_account_id: LookupMap::new(b"ai".to_vec()),
+            validator_data_weight: LookupMap::new(b"we".to_vec()),
+            validator_data_staked_amount: LookupMap::new(b"sa".to_vec()),
+            validator_data_block_height: LookupMap::new(b"vbh".to_vec()),
+            validator_data_delegation_ids: LookupMap::new(b"di".to_vec()),
 
-            delegation_data_amount: HashMap::default(),
-            delegation_data_account_id: HashMap::default(),
-            delegation_data_block_height: HashMap::default(),
+            delegation_data_amount: LookupMap::new(b"dam".to_vec()),
+            delegation_data_account_id: LookupMap::new(b"dai".to_vec()),
+            delegation_data_block_height: LookupMap::new(b"dbh".to_vec()),
 
-            test_data: HashMap::default(),
+            bridge_token_data_symbol: LookupMap::new(b"ts".to_vec()),
+            bridge_symbol_to_token: LookupMap::new(b"st".to_vec()),
+            bridge_token_data_active: LookupMap::new(b"ta".to_vec()),
+            bridge_token_data_price: LookupMap::new(b"tp".to_vec()),
+
+            bridge_owner: env::current_account_id(),
         }
     }
 
@@ -203,7 +218,7 @@ impl OctopusRelay {
         bond_tokens: u128,
     ) {
         let account_id = env::signer_account_id();
-        let appchain_id = self.appchain_data_name.len() as u32;
+        let appchain_id = self.appchain_len;
 
         assert!(
             !self
@@ -214,31 +229,34 @@ impl OctopusRelay {
 
         // Default validator set
         self.appchain_data_founder_id
-            .insert(appchain_id, account_id);
+            .insert(&appchain_id, &account_id);
         self.appchain_data_name
-            .insert(appchain_id, appchain_name.clone());
+            .insert(&appchain_id, &appchain_name.clone());
         self.appchain_data_website_url
-            .insert(appchain_id, website_url);
+            .insert(&appchain_id, &website_url);
         self.appchain_data_github_address
-            .insert(appchain_id, github_address);
+            .insert(&appchain_id, &github_address);
         self.appchain_data_chain_spec_url
-            .insert(appchain_id, String::from(""));
+            .insert(&appchain_id, &String::from(""));
         self.appchain_data_chain_spec_hash
-            .insert(appchain_id, String::from(""));
+            .insert(&appchain_id, &String::from(""));
         self.appchain_data_boot_nodes
-            .insert(appchain_id, String::from(""));
+            .insert(&appchain_id, &String::from(""));
         self.appchain_data_rpc_endpoint
-            .insert(appchain_id, String::from(""));
+            .insert(&appchain_id, &String::from(""));
         self.appchain_data_bond_tokens
-            .insert(appchain_id, bond_tokens);
+            .insert(&appchain_id, &bond_tokens);
         self.appchain_data_validator_ids
-            .insert(appchain_id, Vec::default());
+            .insert(&appchain_id, &Vec::default());
         self.appchain_data_status
-            .insert(appchain_id, AppchainStatus::InProgress);
+            .insert(&appchain_id, &AppchainStatus::InProgress);
         self.appchain_data_block_height
-            .insert(appchain_id, env::block_index());
-        self.is_appchain_name_registered.insert(appchain_name, true);
-        self.appchain_data_validator_sets_len.insert(appchain_id, 0);
+            .insert(&appchain_id, &env::block_index());
+        self.is_appchain_name_registered
+            .insert(&appchain_name, &true);
+        self.appchain_data_validator_sets_len
+            .insert(&appchain_id, &0);
+        self.appchain_len += 1;
         log!(
             "Appchain added, appchain_id is {}, bund_tokens is {}.",
             appchain_id,
@@ -258,30 +276,30 @@ impl OctopusRelay {
 
         // Only appchain founder can do this
         assert!(
-            account_id == self.appchain_data_founder_id[&appchain_id],
+            account_id == self.appchain_data_founder_id.get(&appchain_id).unwrap(),
             "You aren't the appchain founder!"
         );
 
         self.appchain_data_chain_spec_url
-            .insert(appchain_id, chain_spec_url);
+            .insert(&appchain_id, &chain_spec_url);
         self.appchain_data_chain_spec_hash
-            .insert(appchain_id, chain_spec_hash);
+            .insert(&appchain_id, &chain_spec_hash);
         self.appchain_data_website_url
-            .insert(appchain_id, website_url);
+            .insert(&appchain_id, &website_url);
         self.appchain_data_github_address
-            .insert(appchain_id, github_address);
+            .insert(&appchain_id, &github_address);
         self.appchain_data_status
-            .insert(appchain_id, AppchainStatus::Frozen);
+            .insert(&appchain_id, &AppchainStatus::Frozen);
     }
 
     pub fn get_appchains(&self, from_index: u32, limit: u32) -> Vec<Appchain> {
-        (from_index..std::cmp::min(from_index + limit, self.appchain_data_name.len() as u32))
+        (from_index..std::cmp::min(from_index + limit, self.appchain_len as u32))
             .map(|index| self.get_appchain(index).unwrap())
             .collect()
     }
 
-    pub fn get_num_appchains(&self) -> usize {
-        self.appchain_data_name.len()
+    pub fn get_num_appchains(&self) -> u32 {
+        self.appchain_len
     }
 
     /// Returns the total staking balance.
@@ -301,38 +319,38 @@ impl OctopusRelay {
                 founder_id: self
                     .appchain_data_founder_id
                     .get(&appchain_id)
-                    .unwrap_or(&String::from(""))
+                    .unwrap_or(String::from(""))
                     .clone(),
                 appchain_name: appchain_name_option.unwrap().clone(),
                 website_url: self
                     .appchain_data_website_url
                     .get(&appchain_id)
-                    .unwrap_or(&String::from(""))
+                    .unwrap_or(String::from(""))
                     .clone(),
                 github_address: self
                     .appchain_data_github_address
                     .get(&appchain_id)
-                    .unwrap_or(&String::from(""))
+                    .unwrap_or(String::from(""))
                     .clone(),
                 chain_spec_url: self
                     .appchain_data_chain_spec_url
                     .get(&appchain_id)
-                    .unwrap_or(&String::from(""))
+                    .unwrap_or(String::from(""))
                     .clone(),
                 chain_spec_hash: self
                     .appchain_data_chain_spec_hash
                     .get(&appchain_id)
-                    .unwrap_or(&String::from(""))
+                    .unwrap_or(String::from(""))
                     .clone(),
                 boot_nodes: self
                     .appchain_data_boot_nodes
                     .get(&appchain_id)
-                    .unwrap_or(&String::from(""))
+                    .unwrap_or(String::from(""))
                     .clone(),
                 rpc_endpoint: self
                     .appchain_data_rpc_endpoint
                     .get(&appchain_id)
-                    .unwrap_or(&String::from(""))
+                    .unwrap_or(String::from(""))
                     .clone(),
                 bond_tokens: self
                     .appchain_data_bond_tokens
@@ -344,7 +362,7 @@ impl OctopusRelay {
                 validators_timestamp: self
                     .appchain_data_validators_timestamp
                     .get(&appchain_id)
-                    .unwrap_or(&0)
+                    .unwrap_or(0)
                     .clone(),
                 status: self.appchain_data_status.get(&appchain_id).unwrap().clone(),
                 block_height: self
@@ -415,14 +433,23 @@ impl OctopusRelay {
             Some(Validator {
                 id: validator_id.clone(),
                 account_id: account_id_option.unwrap().to_string(),
-                weight: self.validator_data_weight[&(appchain_id, validator_id.clone())],
-                staked_amount: self.validator_data_staked_amount
-                    [&(appchain_id, validator_id.clone())]
+                weight: self
+                    .validator_data_weight
+                    .get(&(appchain_id, validator_id.clone()))
+                    .unwrap(),
+                staked_amount: self
+                    .validator_data_staked_amount
+                    .get(&(appchain_id, validator_id.clone()))
+                    .unwrap()
                     .into(),
-                block_height: self.validator_data_block_height
-                    [&(appchain_id, validator_id.clone())],
-                delegations: self.validator_data_delegation_ids
-                    [&(appchain_id, validator_id.clone())]
+                block_height: self
+                    .validator_data_block_height
+                    .get(&(appchain_id, validator_id.clone()))
+                    .unwrap(),
+                delegations: self
+                    .validator_data_delegation_ids
+                    .get(&(appchain_id, validator_id.clone()))
+                    .unwrap()
                     .iter()
                     .map(|d| {
                         self.get_delegation(appchain_id, validator_id.clone(), d.to_string())
@@ -450,11 +477,15 @@ impl OctopusRelay {
             Some(Delegation {
                 id: delegator_id.clone(),
                 account_id: account_id_option.unwrap().to_string(),
-                amount: self.delegation_data_amount
-                    [&(appchain_id, validator_id.clone(), delegator_id.clone())]
+                amount: self
+                    .delegation_data_amount
+                    .get(&(appchain_id, validator_id.clone(), delegator_id.clone()))
+                    .unwrap()
                     .into(),
-                block_height: self.delegation_data_block_height
-                    [&(appchain_id, validator_id, delegator_id)],
+                block_height: self
+                    .delegation_data_block_height
+                    .get(&(appchain_id, validator_id, delegator_id))
+                    .unwrap(),
             })
         } else {
             None
@@ -468,7 +499,9 @@ impl OctopusRelay {
 
     // Returns the appchain current validator_set len
     pub fn get_curr_validator_set_len(&self, appchain_id: AppchainId) -> u32 {
-        self.appchain_data_validator_sets_len[&appchain_id]
+        self.appchain_data_validator_sets_len
+            .get(&appchain_id)
+            .unwrap()
     }
 
     pub fn get_validator_set(&self, appchain_id: AppchainId) -> Option<ValidatorSet> {
@@ -494,8 +527,7 @@ impl OctopusRelay {
         } else {
             return self
                 .appchain_data_validator_set
-                .get(&(appchain_id, seq_num))
-                .cloned();
+                .get(&(appchain_id, seq_num));
         }
     }
 
@@ -523,16 +555,16 @@ impl OctopusRelay {
         }
 
         self.validator_data_account_id
-            .insert((appchain_id, id.clone()), account_id);
+            .insert(&(appchain_id, id.clone()), &account_id);
         self.validator_data_weight
-            .insert((appchain_id, id.clone()), weight);
+            .insert(&(appchain_id, id.clone()), &weight);
         self.validator_data_staked_amount
-            .insert((appchain_id, id.clone()), amount);
+            .insert(&(appchain_id, id.clone()), &amount);
         self.validator_data_block_height
-            .insert((appchain_id, id.clone()), env::block_index());
+            .insert(&(appchain_id, id.clone()), &env::block_index());
 
         self.validator_data_delegation_ids
-            .insert((appchain_id, id.clone()), Vec::default());
+            .insert(&(appchain_id, id.clone()), &Vec::default());
 
         let mut validator_ids: Vec<ValidatorId> = self
             .appchain_data_validator_ids
@@ -542,7 +574,7 @@ impl OctopusRelay {
 
         validator_ids.push(id.clone());
         self.appchain_data_validator_ids
-            .insert(appchain_id, validator_ids);
+            .insert(&appchain_id, &validator_ids);
         self.total_staked_balance += amount;
 
         // Check to update validator set
@@ -573,9 +605,9 @@ impl OctopusRelay {
         for v in validators.iter_mut() {
             if v.account_id == account_id {
                 self.validator_data_staked_amount
-                    .insert((appchain_id, v.id.clone()), v.staked_amount.0 + amount);
+                    .insert(&(appchain_id, v.id.clone()), &(v.staked_amount.0 + amount));
                 self.validator_data_weight
-                    .insert((appchain_id, v.id.clone()), v.weight + weight);
+                    .insert(&(appchain_id, v.id.clone()), &(v.weight + weight));
                 found = true;
             }
         }
@@ -633,12 +665,15 @@ impl OctopusRelay {
 
         // Remove the validator
         validator_ids.retain(|v| {
-            self.validator_data_account_id[&(appchain_id, v.to_string())] != account_id
+            self.validator_data_account_id
+                .get(&(appchain_id, v.to_string()))
+                .unwrap()
+                != account_id
         });
 
         // Update state
         self.appchain_data_validator_ids
-            .insert(appchain_id, validator_ids);
+            .insert(&appchain_id, &validator_ids);
         self.total_staked_balance -= amount;
 
         // // Check to update validator set
@@ -658,18 +693,25 @@ impl OctopusRelay {
         assert_self();
         // Can only activate a frozen appchain
         assert!(
-            self.appchain_data_status[&appchain_id] == AppchainStatus::Frozen,
+            self.appchain_data_status.get(&appchain_id).unwrap() == AppchainStatus::Frozen,
             "Appchain status incorrect"
         );
         // Check validators
         assert!(
-            self.appchain_data_validator_ids[&appchain_id].len() as u32
+            self.appchain_data_validator_ids
+                .get(&appchain_id)
+                .unwrap()
+                .len() as u32
                 >= self.appchain_minium_validators,
             "Insufficient number of appchain validators"
         );
 
-        let account_id = self.appchain_data_founder_id[&appchain_id].clone();
-        let bond_tokens = self.appchain_data_bond_tokens[&appchain_id];
+        let account_id = self
+            .appchain_data_founder_id
+            .get(&appchain_id)
+            .unwrap()
+            .clone();
+        let bond_tokens = self.appchain_data_bond_tokens.get(&appchain_id).unwrap();
         ext_oct_token::ft_transfer(
             account_id,
             (bond_tokens / 10).into(),
@@ -696,12 +738,12 @@ impl OctopusRelay {
     ) {
         // Update state
         self.appchain_data_status
-            .insert(appchain_id, AppchainStatus::Active);
+            .insert(&appchain_id, &AppchainStatus::Active);
         self.appchain_data_boot_nodes
-            .insert(appchain_id, boot_nodes);
+            .insert(&appchain_id, &boot_nodes);
         self.appchain_data_rpc_endpoint
-            .insert(appchain_id, rpc_endpoint);
-        self.appchain_data_bond_tokens.insert(appchain_id, 0);
+            .insert(&appchain_id, &rpc_endpoint);
+        self.appchain_data_bond_tokens.insert(&appchain_id, &0);
 
         // Check to update validator set
         self.update_validator_set(appchain_id);
@@ -716,50 +758,116 @@ impl OctopusRelay {
 
         // Check status
         assert!(
-            self.appchain_data_status[&appchain_id] == AppchainStatus::Active,
+            self.appchain_data_status.get(&appchain_id).unwrap() == AppchainStatus::Active,
             "Appchain status incorrect"
         );
 
         // Update state
         self.appchain_data_status
-            .insert(appchain_id, AppchainStatus::Frozen);
+            .insert(&appchain_id, &AppchainStatus::Frozen);
     }
 
     fn update_validator_set(&mut self, appchain_id: AppchainId) -> bool {
         let next_validator_set_option = self.next_validator_set(appchain_id);
 
         self.appchain_data_validators_timestamp
-            .insert(appchain_id, env::block_timestamp());
+            .insert(&appchain_id, &env::block_timestamp());
 
         // Check status
-        if self.appchain_data_status[&appchain_id] != AppchainStatus::Active {
+        if self.appchain_data_status.get(&appchain_id).unwrap() != AppchainStatus::Active {
             return false;
         }
 
         if next_validator_set_option.is_some() {
             let next_validator_set = next_validator_set_option.unwrap();
             let seq_num = next_validator_set.seq_num;
-            if (self.appchain_data_validator_ids[&appchain_id].len() as u32)
+            if (self
+                .appchain_data_validator_ids
+                .get(&appchain_id)
+                .unwrap()
+                .len() as u32)
                 < self.appchain_minium_validators
             {
                 self.appchain_data_status
-                    .insert(appchain_id, AppchainStatus::Frozen);
+                    .insert(&appchain_id, &AppchainStatus::Frozen);
                 self.appchain_data_validator_set.insert(
-                    (appchain_id, seq_num),
-                    ValidatorSet {
+                    &(appchain_id, seq_num),
+                    &ValidatorSet {
                         seq_num: seq_num,
                         validators: vec![],
                     },
                 );
             } else {
                 self.appchain_data_validator_set
-                    .insert((appchain_id, seq_num), next_validator_set);
+                    .insert(&(appchain_id, seq_num), &next_validator_set);
             }
             self.appchain_data_validator_sets_len
-                .insert(appchain_id, seq_num + 1);
+                .insert(&appchain_id, &(seq_num + 1));
         }
 
         true
+    }
+
+    pub fn register_bridge_token(&mut self, token_id: AccountId, symbol: String, price: U128) {
+        self.assert_bridge_owner();
+        assert!(
+            !self.bridge_token_data_symbol.contains_key(&token_id),
+            "The token_id is already registered"
+        );
+        assert!(
+            !self.bridge_symbol_to_token.contains_key(&symbol),
+            "The symbol is already registered"
+        );
+
+        self.bridge_token_data_symbol.insert(&token_id, &symbol);
+        self.bridge_symbol_to_token.insert(&symbol, &token_id);
+        self.bridge_token_data_active.insert(&token_id, &true);
+        self.bridge_token_data_price
+            .insert(&token_id, &price.into());
+    }
+
+    pub fn get_bridge_token(&self, token_id: AccountId) -> Option<BridgeToken> {
+        if self.bridge_token_data_symbol.contains_key(&token_id) {
+            Some(BridgeToken {
+                symbol: self.bridge_token_data_symbol.get(&token_id).unwrap(),
+                active: self.bridge_token_data_active.get(&token_id).unwrap(),
+                price: self.bridge_token_data_price.get(&token_id).unwrap().into(),
+                token_id: token_id.clone(),
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn get_bridge_allowance(
+        &self,
+        appchain_id: AppchainId,
+        token_id: AccountId,
+        amount: U128,
+    ) -> bool {
+        self.bridge_token_data_active
+            .get(&token_id)
+            .unwrap_or(false)
+    }
+}
+
+pub trait BridgeOwnable {
+    fn assert_bridge_owner(&self) {
+        assert_eq!(env::predecessor_account_id(), self.get_bridge_owner());
+    }
+    fn get_bridge_owner(&self) -> AccountId;
+    fn set_bridge_owner(&mut self, owner: AccountId);
+}
+
+#[near_bindgen]
+impl BridgeOwnable for OctopusRelay {
+    fn get_bridge_owner(&self) -> AccountId {
+        self.bridge_owner.clone()
+    }
+
+    fn set_bridge_owner(&mut self, owner: AccountId) {
+        self.assert_bridge_owner();
+        self.bridge_owner = owner;
     }
 }
 

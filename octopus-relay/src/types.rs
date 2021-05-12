@@ -89,3 +89,12 @@ pub struct Appchain {
     pub status: AppchainStatus,
     pub block_height: BlockHeight,
 }
+
+#[derive(Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct BridgeToken {
+    pub token_id: AccountId,
+    pub symbol: String,
+    pub active: bool,
+    pub price: U128,
+}
