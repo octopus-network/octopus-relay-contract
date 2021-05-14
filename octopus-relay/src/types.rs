@@ -88,6 +88,7 @@ pub struct Appchain {
     pub validators_timestamp: u64,
     pub status: AppchainStatus,
     pub block_height: BlockHeight,
+    pub staked_balance: U128,
 }
 
 #[derive(Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug)]

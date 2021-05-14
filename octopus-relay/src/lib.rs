@@ -4,13 +4,14 @@ pub mod types;
 use crate::types::{
     Appchain, AppchainStatus, BridgeToken, Delegation, LiteValidator, Validator, ValidatorSet,
 };
+use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LookupMap, UnorderedMap};
+use near_sdk::collections::LookupMap;
 use near_sdk::json_types::{ValidAccountId, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    assert_self, env, ext_contract, log, near_bindgen, wee_alloc, AccountId, Balance, BlockHeight,
-    PromiseOrValue,
+    assert_self, callback, env, ext_contract, log, near_bindgen, wee_alloc, AccountId, Balance,
+    BlockHeight, Promise, PromiseOrValue,
 };
 
 #[global_allocator]
@@ -35,8 +36,8 @@ pub type SeqNum = u32;
 pub struct OctopusRelay {
     pub token_contract_id: AccountId,
     pub appchain_minium_validators: u32,
-    pub minium_staking_amount: u128,
-    pub total_staked_balance: u128,
+    pub minium_staking_amount: Balance,
+    pub total_staked_balance: Balance,
     pub appchain_len: u32,
 
     // data for Appchain
@@ -53,6 +54,7 @@ pub struct OctopusRelay {
     pub appchain_data_validators_timestamp: LookupMap<AppchainId, u64>,
     pub appchain_data_status: LookupMap<AppchainId, AppchainStatus>,
     pub appchain_data_block_height: LookupMap<AppchainId, BlockHeight>,
+    pub appchain_data_staked_balance: LookupMap<AppchainId, Balance>,
 
     pub is_appchain_name_registered: LookupMap<String, bool>,
 
@@ -74,10 +76,14 @@ pub struct OctopusRelay {
 
     pub bridge_token_data_symbol: LookupMap<AccountId, String>,
     pub bridge_symbol_to_token: LookupMap<String, AccountId>,
-    pub bridge_token_data_active: LookupMap<AccountId, bool>,
+    pub bridge_token_data_is_active: LookupMap<AccountId, bool>,
     pub bridge_token_data_price: LookupMap<AccountId, Balance>,
+    pub bridge_token_data_locked: LookupMap<AccountId, Balance>,
 
+    pub bridge_limit_ratio: u16, // 100 as 1%
     pub bridge_owner: AccountId,
+    pub bridge_is_active: bool,
+    pub oct_token_price: u128, // 10_000_000_000 as 1usd
 }
 
 #[ext_contract(ext_self)]
@@ -89,11 +95,18 @@ pub trait ExtOctopusRelay {
         boot_nodes: String,
         rpc_endpoint: String,
     );
+    fn resolve_bridge_allowed_amount(
+        &self,
+        appchain_id: AppchainId,
+        token_id: AccountId,
+        #[callback] metadata: FungibleTokenMetadata,
+    ) -> U128;
 }
 
-#[ext_contract(ext_oct_token)]
-pub trait ExtOCTContract {
+#[ext_contract(ext_token)]
+pub trait ExtContract {
     fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
+    fn ft_metadata(&self) -> FungibleTokenMetadata;
 }
 
 impl Default for OctopusRelay {
@@ -109,6 +122,8 @@ impl OctopusRelay {
         token_contract_id: AccountId,
         appchain_minium_validators: u32,
         minium_staking_amount: U128,
+        bridge_limit_ratio: u16,
+        oct_token_price: U128,
     ) -> Self {
         assert!(!env::state_exists(), "The contract is already initialized");
         assert_self();
@@ -132,6 +147,7 @@ impl OctopusRelay {
             appchain_data_validators_timestamp: LookupMap::new(b"vt".to_vec()),
             appchain_data_status: LookupMap::new(b"st".to_vec()),
             appchain_data_block_height: LookupMap::new(b"abh".to_vec()),
+            appchain_data_staked_balance: LookupMap::new(b"sb".to_vec()),
 
             is_appchain_name_registered: LookupMap::new(b"ir".to_vec()),
 
@@ -150,10 +166,14 @@ impl OctopusRelay {
 
             bridge_token_data_symbol: LookupMap::new(b"ts".to_vec()),
             bridge_symbol_to_token: LookupMap::new(b"st".to_vec()),
-            bridge_token_data_active: LookupMap::new(b"ta".to_vec()),
+            bridge_token_data_is_active: LookupMap::new(b"ta".to_vec()),
             bridge_token_data_price: LookupMap::new(b"tp".to_vec()),
+            bridge_token_data_locked: LookupMap::new(b"tl".to_vec()),
 
             bridge_owner: env::current_account_id(),
+            bridge_is_active: true,
+            bridge_limit_ratio,
+            oct_token_price: oct_token_price.into(),
         }
     }
 
@@ -370,6 +390,11 @@ impl OctopusRelay {
                     .get(&appchain_id)
                     .unwrap()
                     .clone(),
+                staked_balance: self
+                    .appchain_data_staked_balance
+                    .get(&appchain_id)
+                    .unwrap_or(0)
+                    .into(),
             })
         } else {
             None
@@ -575,6 +600,13 @@ impl OctopusRelay {
         validator_ids.push(id.clone());
         self.appchain_data_validator_ids
             .insert(&appchain_id, &validator_ids);
+
+        let staked_balance = self
+            .appchain_data_staked_balance
+            .get(&appchain_id)
+            .unwrap_or(0);
+        self.appchain_data_staked_balance
+            .insert(&appchain_id, &(staked_balance + amount));
         self.total_staked_balance += amount;
 
         // Check to update validator set
@@ -616,6 +648,12 @@ impl OctopusRelay {
             panic!("You are not staked on the appchain");
         }
 
+        let staked_balance = self
+            .appchain_data_staked_balance
+            .get(&appchain_id)
+            .unwrap_or(0);
+        self.appchain_data_staked_balance
+            .insert(&appchain_id, &(staked_balance + amount));
         self.total_staked_balance += amount;
 
         // Check to update validator set
@@ -632,7 +670,7 @@ impl OctopusRelay {
             .find(|v| v.account_id == account_id)
             .expect("You are not staked on the appchain");
 
-        ext_oct_token::ft_transfer(
+        ext_token::ft_transfer(
             account_id.clone(),
             validator.staked_amount.into(),
             None,
@@ -674,6 +712,13 @@ impl OctopusRelay {
         // Update state
         self.appchain_data_validator_ids
             .insert(&appchain_id, &validator_ids);
+
+        let staked_balance = self
+            .appchain_data_staked_balance
+            .get(&appchain_id)
+            .unwrap_or(0);
+        self.appchain_data_staked_balance
+            .insert(&appchain_id, &(staked_balance - amount));
         self.total_staked_balance -= amount;
 
         // // Check to update validator set
@@ -712,7 +757,7 @@ impl OctopusRelay {
             .unwrap()
             .clone();
         let bond_tokens = self.appchain_data_bond_tokens.get(&appchain_id).unwrap();
-        ext_oct_token::ft_transfer(
+        ext_token::ft_transfer(
             account_id,
             (bond_tokens / 10).into(),
             None,
@@ -808,6 +853,18 @@ impl OctopusRelay {
         true
     }
 
+    pub fn pause_bridge(&mut self) {
+        assert!(self.bridge_is_active, "The bridge is already paused!");
+        self.assert_bridge_owner();
+        self.bridge_is_active = false;
+    }
+
+    pub fn resume_bridge(&mut self) {
+        assert!(!self.bridge_is_active, "The bridge is active!");
+        self.assert_bridge_owner();
+        self.bridge_is_active = true;
+    }
+
     pub fn register_bridge_token(&mut self, token_id: AccountId, symbol: String, price: U128) {
         self.assert_bridge_owner();
         assert!(
@@ -821,33 +878,65 @@ impl OctopusRelay {
 
         self.bridge_token_data_symbol.insert(&token_id, &symbol);
         self.bridge_symbol_to_token.insert(&symbol, &token_id);
-        self.bridge_token_data_active.insert(&token_id, &true);
+        self.bridge_token_data_is_active.insert(&token_id, &true);
+        self.bridge_token_data_price
+            .insert(&token_id, &price.into());
+        self.bridge_token_data_locked.insert(&token_id, &0);
+    }
+
+    pub fn set_oct_token_price(&mut self, price: U128) {
+        self.assert_bridge_owner();
+        self.oct_token_price = price.into();
+    }
+
+    pub fn set_bridge_token_price(&mut self, token_id: AccountId, price: U128) {
+        self.assert_bridge_owner();
         self.bridge_token_data_price
             .insert(&token_id, &price.into());
     }
 
-    pub fn get_bridge_token(&self, token_id: AccountId) -> Option<BridgeToken> {
-        if self.bridge_token_data_symbol.contains_key(&token_id) {
-            Some(BridgeToken {
-                symbol: self.bridge_token_data_symbol.get(&token_id).unwrap(),
-                active: self.bridge_token_data_active.get(&token_id).unwrap(),
-                price: self.bridge_token_data_price.get(&token_id).unwrap().into(),
-                token_id: token_id.clone(),
-            })
-        } else {
-            None
-        }
-    }
-
-    pub fn get_bridge_allowance(
+    pub fn get_bridge_allowed_amount(
         &self,
         appchain_id: AppchainId,
         token_id: AccountId,
-        amount: U128,
-    ) -> bool {
-        self.bridge_token_data_active
-            .get(&token_id)
-            .unwrap_or(false)
+    ) -> PromiseOrValue<U128> {
+        ext_token::ft_metadata(&token_id, 0, SINGLE_CALL_GAS)
+            .then(ext_self::resolve_bridge_allowed_amount(
+                appchain_id,
+                token_id,
+                &env::current_account_id(),
+                0,
+                SINGLE_CALL_GAS,
+            ))
+            .into()
+    }
+
+    pub fn resolve_bridge_allowed_amount(
+        &self,
+        appchain_id: AppchainId,
+        token_id: AccountId,
+        #[callback] metadata: FungibleTokenMetadata,
+    ) -> U128 {
+        let is_active = self.bridge_is_active
+            && self
+                .bridge_token_data_is_active
+                .get(&token_id)
+                .unwrap_or(false);
+        assert!(is_active, "The bridge is paused");
+
+        let staked_balance = self
+            .appchain_data_staked_balance
+            .get(&appchain_id)
+            .unwrap_or(0);
+        let token_price = self.bridge_token_data_price.get(&token_id).unwrap();
+
+        let limit_val = staked_balance / DECIMALS_BASE
+            * self.oct_token_price
+            * (self.bridge_limit_ratio as u128)
+            / 10000;
+        let base: u128 = 10;
+        let limit_amount = limit_val * base.pow(metadata.decimals as u32) / token_price;
+        limit_amount.into()
     }
 }
 
