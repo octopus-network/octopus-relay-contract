@@ -34,7 +34,7 @@ export TOKEN_CONTRACT_ID=token_account_id
 export SIGNER=your_account_id
 
 # Initialize contract with given council and parameters (this is for testing, where you stil have access key to the contract).
-near call $CONTRACT_ID new '{"token_contract_id": "'$TOKEN_CONTRACT_ID'", "appchain_minium_validators": 1, "minium_staking_amount": "100000000000000000000000000", "bridge_limit_ratio": 3333, "oct_token_price": "10000000000" }' --accountId $CONTRACT_ID
+near call $CONTRACT_ID new '{"token_contract_id": "'$TOKEN_CONTRACT_ID'", "appchain_minium_validators": 1, "minium_staking_amount": "100000000000000000000000000", "bridge_limit_ratio": 3333, "oct_token_price": "2000000" }' --accountId $CONTRACT_ID
 ```
 
 ### Use test contracts initialized by Octopus
@@ -86,13 +86,13 @@ near view $CONTRACT_ID get_curr_validator_set_index '{"appchain_id": 0}'
 # Get finalized validator_set by sequence number
 near view $CONTRACT_ID get_validator_set_by_seq_num '{"appchain_id": 0, "seq_num": 0}'
 
-# Register bridge_token, 10000000000 means 1.0000000000 usd
-near call $CONTRACT_ID register_bridge_token '{"token_id": "test-stable.testnet", "symbol": "TSB", "price": "10000000000"}' --accountId $CONTRACT_ID
+# Register bridge_token, 1000000 means 1.0000000000 usd
+near call $CONTRACT_ID register_bridge_token '{"token_id": "test-stable.testnet", "symbol": "TSB", "price": "1000000", "decimals": 12}' --accountId $CONTRACT_ID
 
 # view bridge_token
-near view $CONTRACT_ID get_bridge_token '{"token_id": "test_id"}'
+near view $CONTRACT_ID get_bridge_token '{"token_id": "test-stable.testnet"}'
 
 # call and get bridge_allowed_amount
-near call $CONTRACT_ID get_bridge_allowed_amount '{"appchain_id": 0, "token_id": "test-stable.testnet"}' --accountId $SIGNER
+near view $CONTRACT_ID get_bridge_allowed_limit '{"appchain_id": 0, "token_id": "test-stable.testnet"}'
 
 ```

@@ -96,6 +96,7 @@ pub struct Appchain {
 pub struct BridgeToken {
     pub token_id: AccountId,
     pub symbol: String,
-    pub active: bool,
+    pub is_active: bool,
     pub price: U128,
+    pub decimals: u32,
 }
