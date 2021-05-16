@@ -4,7 +4,6 @@ pub mod types;
 use crate::types::{
     Appchain, AppchainStatus, BridgeToken, Delegation, LiteValidator, Validator, ValidatorSet,
 };
-use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::LookupMap;
 use near_sdk::json_types::{ValidAccountId, U128};
@@ -18,6 +17,7 @@ use near_sdk::{
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 const NO_DEPOSIT: Balance = 0;
+const GAS_FOR_FT_TRANSFER_CALL: u64 = 30_000_000_000_000;
 const SINGLE_CALL_GAS: u64 = 10_000_000_000_000;
 const DECIMALS_BASE: Balance = 1000_000_000_000_000_000_000_000;
 
@@ -100,7 +100,6 @@ pub trait ExtOctopusRelay {
 #[ext_contract(ext_token)]
 pub trait ExtContract {
     fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
-    fn ft_metadata(&self) -> FungibleTokenMetadata;
 }
 
 impl Default for OctopusRelay {
@@ -670,7 +669,7 @@ impl OctopusRelay {
             None,
             &self.token_contract_id,
             1,
-            SINGLE_CALL_GAS,
+            GAS_FOR_FT_TRANSFER_CALL,
         )
         .then(ext_self::resolve_unstaking(
             appchain_id,
