@@ -19,7 +19,7 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 const NO_DEPOSIT: Balance = 0;
 const GAS_FOR_FT_TRANSFER_CALL: u64 = 30_000_000_000_000;
 const SINGLE_CALL_GAS: u64 = 10_000_000_000_000;
-const DECIMALS_BASE: Balance = 1000_000_000_000_000_000_000_000;
+const OCT_DECIMALS_BASE: Balance = 1000_000_000_000_000_000_000_000;
 
 const VALIDATOR_SET_CYCLE: u64 = 60000000000;
 // const VALIDATOR_SET_CYCLE: u64 = 86400000000000;
@@ -561,7 +561,7 @@ impl OctopusRelay {
             "Insufficient staking amount"
         );
 
-        let weight = (amount / DECIMALS_BASE) as u32;
+        let weight = (amount / OCT_DECIMALS_BASE) as u32;
 
         if !self.appchain_data_name.contains_key(&appchain_id) {
             panic!("Appchain not found");
@@ -618,7 +618,7 @@ impl OctopusRelay {
             "Insufficient staking amount"
         );
 
-        let weight = (amount / DECIMALS_BASE) as u32;
+        let weight = (amount / OCT_DECIMALS_BASE) as u32;
 
         let mut validators = self
             .get_validators(appchain_id)
@@ -944,7 +944,9 @@ impl OctopusRelay {
             .unwrap_or(0);
         let token_price = self.bridge_token_data_price.get(&token_id).unwrap();
         let decimals = self.bridge_token_data_decimals.get(&token_id).unwrap();
-        let limit_val = staked_balance / DECIMALS_BASE
+        let bt_decimals_base = (10 as u128).pow(decimals);
+
+        let limit_val = staked_balance / OCT_DECIMALS_BASE
             * self.oct_token_price
             * (self.bridge_limit_ratio as u128)
             / 10000;
@@ -955,15 +957,17 @@ impl OctopusRelay {
             let bt_locked = self
                 .token_appchain_total_locked
                 .get(&(bt_id, appchain_id))
-                .unwrap();
-            let used_val: Balance = bt_locked * bt_price / DECIMALS_BASE;
+                .unwrap_or(0);
+            let used_val: Balance = bt_locked * bt_price / bt_decimals_base;
+            log!("bt_price = {}", bt_price);
+            log!("bt_locked = {}", bt_locked);
+            log!("used_val = {}", used_val);
             total_used_val += used_val;
         });
 
         let rest_val = limit_val - total_used_val;
 
-        let base: u128 = 10;
-        let allowed_amount = rest_val * base.pow(decimals) / token_price;
+        let allowed_amount = rest_val * bt_decimals_base / token_price;
         allowed_amount.into()
     }
 }
