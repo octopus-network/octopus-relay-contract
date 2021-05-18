@@ -172,5 +172,5 @@ fn simulate_staking() {
     assert_eq!(validator.id, "validator_id");
     assert_eq!(validator.account_id, "root");
     assert_eq!(validator.weight, 200);
-    assert_eq!(validator.staked_amount, U128::from(to_yocto("200")));
+    assert_eq!(validator.staked_amount, U128::from(transfer_amount));
 }

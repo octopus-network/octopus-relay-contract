@@ -93,6 +93,6 @@ near call $CONTRACT_ID register_bridge_token '{"token_id": "test-stable.testnet"
 near view $CONTRACT_ID get_bridge_token '{"token_id": "test-stable.testnet"}'
 
 # call and get bridge_allowed_amount
-near view $CONTRACT_ID get_bridge_allowed_limit '{"appchain_id": 0, "token_id": "test-stable.testnet"}'
+near view $CONTRACT_ID get_bridge_allowed '{"appchain_id": 0, "token_id": "test-stable.testnet"}'
 
 ```

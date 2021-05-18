@@ -5,7 +5,7 @@ use crate::types::{
     Appchain, AppchainStatus, BridgeToken, Delegation, LiteValidator, Validator, ValidatorSet,
 };
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::LookupMap;
+use near_sdk::collections::{LookupMap, UnorderedMap};
 use near_sdk::json_types::{ValidAccountId, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
@@ -74,16 +74,17 @@ pub struct OctopusRelay {
     pub delegation_data_block_height:
         LookupMap<(AppchainId, ValidatorId, DelegatorId), BlockHeight>,
 
-    pub bridge_token_data_symbol: LookupMap<AccountId, String>,
+    pub bridge_token_data_symbol: UnorderedMap<AccountId, String>,
     pub bridge_symbol_to_token: LookupMap<String, AccountId>,
     pub bridge_token_data_is_active: LookupMap<AccountId, bool>,
     pub bridge_token_data_price: LookupMap<AccountId, Balance>,
     pub bridge_token_data_decimals: LookupMap<AccountId, u32>,
-
     pub bridge_limit_ratio: u16, // 100 as 1%
     pub bridge_owner: AccountId,
     pub bridge_is_active: bool,
     pub oct_token_price: u128, // 1_000_000 as 1usd
+
+    pub token_appchain_total_locked: LookupMap<(AccountId, AppchainId), Balance>,
 }
 
 #[ext_contract(ext_self)]
@@ -157,7 +158,7 @@ impl OctopusRelay {
             delegation_data_account_id: LookupMap::new(b"dai".to_vec()),
             delegation_data_block_height: LookupMap::new(b"dbh".to_vec()),
 
-            bridge_token_data_symbol: LookupMap::new(b"ts".to_vec()),
+            bridge_token_data_symbol: UnorderedMap::new(b"ts".to_vec()),
             bridge_symbol_to_token: LookupMap::new(b"st".to_vec()),
             bridge_token_data_is_active: LookupMap::new(b"ta".to_vec()),
             bridge_token_data_price: LookupMap::new(b"tp".to_vec()),
@@ -167,6 +168,8 @@ impl OctopusRelay {
             bridge_is_active: true,
             bridge_limit_ratio,
             oct_token_price: oct_token_price.into(),
+
+            token_appchain_total_locked: LookupMap::new(b"tab".to_vec()),
         }
     }
 
@@ -869,7 +872,7 @@ impl OctopusRelay {
     ) {
         self.assert_bridge_owner();
         assert!(
-            !self.bridge_token_data_symbol.contains_key(&token_id),
+            !self.bridge_token_data_symbol.get(&token_id).is_some(),
             "The token_id is already registered"
         );
         assert!(
@@ -896,10 +899,27 @@ impl OctopusRelay {
             .insert(&token_id, &price.into());
     }
 
+    pub fn after_token_lock(
+        &mut self,
+        token_id: AccountId,
+        appchain_id: AppchainId,
+        amount: U128,
+    ) -> U128 {
+        let total_locked: Balance = self
+            .token_appchain_total_locked
+            .get(&(token_id.clone(), appchain_id))
+            .unwrap_or(0);
+        let next_total_locked = total_locked + u128::from(amount);
+        self.token_appchain_total_locked
+            .insert(&(token_id, appchain_id), &(next_total_locked));
+        next_total_locked.into()
+    }
+
     pub fn get_bridge_token(&self, token_id: AccountId) -> Option<BridgeToken> {
-        if self.bridge_token_data_symbol.contains_key(&token_id) {
+        let bridge_token_symbol_option = self.bridge_token_data_symbol.get(&token_id);
+        if bridge_token_symbol_option.is_some() {
             Some(BridgeToken {
-                symbol: self.bridge_token_data_symbol.get(&token_id).unwrap(),
+                symbol: bridge_token_symbol_option.unwrap(),
                 is_active: self.bridge_token_data_is_active.get(&token_id).unwrap(),
                 price: self.bridge_token_data_price.get(&token_id).unwrap().into(),
                 decimals: self.bridge_token_data_decimals.get(&token_id).unwrap(),
@@ -910,7 +930,7 @@ impl OctopusRelay {
         }
     }
 
-    pub fn get_bridge_allowed_limit(&self, appchain_id: AppchainId, token_id: AccountId) -> U128 {
+    pub fn get_bridge_allowed(&self, appchain_id: AppchainId, token_id: AccountId) -> U128 {
         let is_active = self.bridge_is_active
             && self
                 .bridge_token_data_is_active
@@ -928,9 +948,23 @@ impl OctopusRelay {
             * self.oct_token_price
             * (self.bridge_limit_ratio as u128)
             / 10000;
+
+        let mut total_used_val: Balance = 0;
+        self.bridge_token_data_symbol.iter().for_each(|(bt_id, _)| {
+            let bt_price = self.bridge_token_data_price.get(&bt_id).unwrap();
+            let bt_locked = self
+                .token_appchain_total_locked
+                .get(&(bt_id, appchain_id))
+                .unwrap();
+            let used_val: Balance = bt_locked * bt_price / DECIMALS_BASE;
+            total_used_val += used_val;
+        });
+
+        let rest_val = limit_val - total_used_val;
+
         let base: u128 = 10;
-        let limit_amount = limit_val * base.pow(decimals) / token_price;
-        limit_amount.into()
+        let allowed_amount = rest_val * base.pow(decimals) / token_price;
+        allowed_amount.into()
     }
 }
 
