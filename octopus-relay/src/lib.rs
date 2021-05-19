@@ -80,7 +80,7 @@ pub struct OctopusRelay {
     pub bridge_token_data_price: LookupMap<AccountId, Balance>,
     pub bridge_token_data_decimals: LookupMap<AccountId, u32>,
     pub bridge_limit_ratio: u16, // 100 as 1%
-    pub bridge_owner: AccountId,
+    pub owner: AccountId,
     pub bridge_is_active: bool,
     pub oct_token_price: u128, // 1_000_000 as 1usd
 
@@ -164,7 +164,7 @@ impl OctopusRelay {
             bridge_token_data_price: LookupMap::new(b"tp".to_vec()),
             bridge_token_data_decimals: LookupMap::new(b"td".to_vec()),
 
-            bridge_owner: env::current_account_id(),
+            owner: env::current_account_id(),
             bridge_is_active: true,
             bridge_limit_ratio,
             oct_token_price: oct_token_price.into(),
@@ -731,7 +731,7 @@ impl OctopusRelay {
             panic!("Appchain not found");
         }
         // Only admin can do this
-        assert_self();
+        self.assert_owner();
         // Can only activate a frozen appchain
         assert!(
             self.appchain_data_status.get(&appchain_id).unwrap() == AppchainStatus::Frozen,
@@ -797,7 +797,7 @@ impl OctopusRelay {
             panic!("Appchain not found");
         }
 
-        assert_self();
+        self.assert_owner();
 
         // Check status
         assert!(
@@ -853,13 +853,13 @@ impl OctopusRelay {
 
     pub fn pause_bridge(&mut self) {
         assert!(self.bridge_is_active, "The bridge is already paused!");
-        self.assert_bridge_owner();
+        self.assert_owner();
         self.bridge_is_active = false;
     }
 
     pub fn resume_bridge(&mut self) {
         assert!(!self.bridge_is_active, "The bridge is active!");
-        self.assert_bridge_owner();
+        self.assert_owner();
         self.bridge_is_active = true;
     }
 
@@ -870,7 +870,7 @@ impl OctopusRelay {
         price: U128,
         decimals: u32,
     ) {
-        self.assert_bridge_owner();
+        self.assert_owner();
         assert!(
             !self.bridge_token_data_symbol.get(&token_id).is_some(),
             "The token_id is already registered"
@@ -889,12 +889,12 @@ impl OctopusRelay {
     }
 
     pub fn set_oct_token_price(&mut self, price: U128) {
-        self.assert_bridge_owner();
+        self.assert_owner();
         self.oct_token_price = price.into();
     }
 
     pub fn set_bridge_token_price(&mut self, token_id: AccountId, price: U128) {
-        self.assert_bridge_owner();
+        self.assert_owner();
         self.bridge_token_data_price
             .insert(&token_id, &price.into());
     }
@@ -972,23 +972,23 @@ impl OctopusRelay {
     }
 }
 
-pub trait BridgeOwnable {
-    fn assert_bridge_owner(&self) {
-        assert_eq!(env::predecessor_account_id(), self.get_bridge_owner());
+pub trait Ownable {
+    fn assert_owner(&self) {
+        assert_eq!(env::predecessor_account_id(), self.get_owner());
     }
-    fn get_bridge_owner(&self) -> AccountId;
-    fn set_bridge_owner(&mut self, owner: AccountId);
+    fn get_owner(&self) -> AccountId;
+    fn set_owner(&mut self, owner: AccountId);
 }
 
 #[near_bindgen]
-impl BridgeOwnable for OctopusRelay {
-    fn get_bridge_owner(&self) -> AccountId {
-        self.bridge_owner.clone()
+impl Ownable for OctopusRelay {
+    fn get_owner(&self) -> AccountId {
+        self.owner.clone()
     }
 
-    fn set_bridge_owner(&mut self, owner: AccountId) {
-        self.assert_bridge_owner();
-        self.bridge_owner = owner;
+    fn set_owner(&mut self, owner: AccountId) {
+        self.assert_owner();
+        self.owner = owner;
     }
 }
 
