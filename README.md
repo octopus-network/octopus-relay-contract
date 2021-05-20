@@ -89,6 +89,9 @@ near view $CONTRACT_ID get_validator_set_by_seq_num '{"appchain_id": 0, "seq_num
 # Register bridge_token, 1000000 means 1.0000000000 usd
 near call $CONTRACT_ID register_bridge_token '{"token_id": "test-stable.testnet", "symbol": "TSB", "price": "1000000", "decimals": 12}' --accountId $CONTRACT_ID
 
+# set token bridge permitted for appchain
+near call $CONTRACT_ID set_bridge_permitted '{"token_id": "test-stable.testnet", "appchain_id": 0, permitted: true}' --accountId $CONTRACT_ID
+
 # view bridge_token
 near view $CONTRACT_ID get_bridge_token '{"token_id": "test-stable.testnet"}'
 

@@ -91,12 +91,26 @@ pub struct Appchain {
     pub staked_balance: U128,
 }
 
+#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug, PartialEq)]
+#[serde(crate = "near_sdk::serde")]
+pub enum BridgeStatus {
+    Paused,
+    Active,
+    Closed,
+}
+
+impl Default for BridgeStatus {
+    fn default() -> Self {
+        BridgeStatus::Active
+    }
+}
+
 #[derive(Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct BridgeToken {
     pub token_id: AccountId,
     pub symbol: String,
-    pub is_active: bool,
+    pub status: BridgeStatus,
     pub price: U128,
     pub decimals: u32,
 }

@@ -2,7 +2,9 @@ use crate::utils::{init, register_user};
 use near_sdk::json_types::U128;
 use near_sdk::serde_json::json;
 use near_sdk_sim::{to_yocto, ExecutionResult, UserAccount, DEFAULT_GAS};
-use octopus_relay::types::{Appchain, AppchainStatus, BridgeToken, Validator, ValidatorSet};
+use octopus_relay::types::{
+    Appchain, AppchainStatus, BridgeStatus, BridgeToken, Validator, ValidatorSet,
+};
 
 const initial_balance_str: &str = "100000";
 const appchain_minium_validators: u32 = 2;
@@ -134,6 +136,28 @@ pub fn default_register_bridge_token(
             "symbol": "BTK",
             "price": U128::from(1000000),
             "decimals": 12,
+        })
+        .to_string()
+        .into_bytes(),
+        DEFAULT_GAS,
+        0,
+    );
+    outcome.assert_success();
+    outcome
+}
+
+pub fn default_set_bridge_permitted(
+    b_token: &UserAccount,
+    relay: &UserAccount,
+    permitted: bool,
+) -> ExecutionResult {
+    let outcome = relay.call(
+        relay.account_id(),
+        "set_bridge_permitted",
+        &json!({
+            "token_id": b_token.valid_account_id(),
+            "appchain_id": 0,
+            "permitted": permitted
         })
         .to_string()
         .into_bytes(),
@@ -313,9 +337,16 @@ fn simulate_register_bridge_token() {
     let bridge_token = bridge_token_option.unwrap();
     assert_eq!(bridge_token.token_id, "b_token");
     assert_eq!(bridge_token.symbol, "BTK");
-    assert_eq!(bridge_token.is_active, true);
+    assert_eq!(bridge_token.status, BridgeStatus::Active);
     assert_eq!(bridge_token.price, U128::from(1000000));
     assert_eq!(bridge_token.decimals, 12);
+}
+
+#[test]
+fn simulate_set_bridge_permitted() {
+    let (root, oct, b_token, relay, alice) = default_init();
+    default_register_bridge_token(&root, &oct, &b_token, &relay, &alice);
+    default_set_bridge_permitted(&b_token, &relay, true);
 
     let bridge_allowed: U128 = root
         .view(
@@ -331,7 +362,7 @@ fn simulate_register_bridge_token() {
         .unwrap_json();
     assert_eq!(
         bridge_allowed,
-        U128::from(2666400 * (10 as u128).pow(bridge_token.decimals) / 10000)
+        U128::from(2666400 * (10 as u128).pow(12) / 10000)
     );
 }
 
@@ -339,6 +370,8 @@ fn simulate_register_bridge_token() {
 fn simulate_lock_token() {
     let (root, oct, b_token, relay, alice) = default_init();
     default_register_bridge_token(&root, &oct, &b_token, &relay, &alice);
+    default_set_bridge_permitted(&b_token, &relay, true);
+
     let (_, bridge_allowed) = lock_token(&root, &b_token, &relay, 120);
     assert_eq!(
         bridge_allowed,
