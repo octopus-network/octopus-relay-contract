@@ -34,7 +34,7 @@ export TOKEN_CONTRACT_ID=token_account_id
 export SIGNER=your_account_id
 
 # Initialize contract with given council and parameters (this is for testing, where you stil have access key to the contract).
-near call $CONTRACT_ID new '{"token_contract_id": "'$TOKEN_CONTRACT_ID'", "appchain_minium_validators": 1, "minium_staking_amount": "100000000000000000000000000", "bridge_limit_ratio": 3333, "oct_token_price": "2000000" }' --accountId $CONTRACT_ID
+near call $CONTRACT_ID new '{"token_contract_id": "'$TOKEN_CONTRACT_ID'", "appchain_minium_validators": 2, "minium_staking_amount": "100000000000000000000000000", "bridge_limit_ratio": 3333, "oct_token_price": "2000000" }' --accountId $CONTRACT_ID
 ```
 
 ### Use test contracts

@@ -36,6 +36,7 @@ pub type SeqNum = u32;
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OctopusRelay {
+    pub version: u32,
     pub token_contract_id: AccountId,
     pub appchain_minium_validators: u32,
     pub minium_staking_amount: Balance,
@@ -124,6 +125,7 @@ impl OctopusRelay {
         assert!(!env::state_exists(), "The contract is already initialized");
         assert_self();
         Self {
+            version: 0,
             token_contract_id,
             total_staked_balance: 0,
             appchain_minium_validators,
@@ -397,6 +399,10 @@ impl OctopusRelay {
         } else {
             None
         }
+    }
+
+    pub fn get_version(&self) -> u32 {
+        self.version
     }
 
     pub fn get_appchain_minium_validators(&self) -> u32 {
