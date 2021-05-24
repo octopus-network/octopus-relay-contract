@@ -37,7 +37,7 @@ export SIGNER=your_account_id
 near call $CONTRACT_ID new '{"token_contract_id": "'$TOKEN_CONTRACT_ID'", "appchain_minium_validators": 1, "minium_staking_amount": "100000000000000000000000000", "bridge_limit_ratio": 3333, "oct_token_price": "2000000" }' --accountId $CONTRACT_ID
 ```
 
-### Use test contracts initialized by Octopus
+### Use test contracts
 
 ```bash
 # Set contract Id
@@ -45,6 +45,17 @@ export CONTRACT_ID=oct-relay.testnet
 
 # Set token contract Id
 export TOKEN_CONTRACT_ID=oct-token.testnet
+```
+
+### Use dev contract
+
+```bash
+# Set contract Id
+export CONTRACT_ID=dev-oct-relay.testnet
+
+# Set token contract Id, it is the same as testnet
+export TOKEN_CONTRACT_ID=oct-token.testnet
+
 ```
 
 ### Usage

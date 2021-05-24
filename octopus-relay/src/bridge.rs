@@ -59,6 +59,10 @@ impl OctopusRelay {
         appchain_id: AppchainId,
         permitted: bool,
     ) {
+        assert!(
+            self.appchain_data_name.contains_key(&appchain_id),
+            "Appchain not found"
+        );
         self.token_appchain_bridge_permitted
             .insert(&(token_id, appchain_id), &permitted);
     }
@@ -122,7 +126,14 @@ impl OctopusRelay {
     }
 
     pub fn get_bridge_allowed(&self, appchain_id: AppchainId, token_id: AccountId) -> U128 {
-        let is_active = self
+        let appchain_is_active = self
+            .appchain_data_status
+            .get(&appchain_id)
+            .unwrap_or(AppchainStatus::InProgress)
+            == AppchainStatus::Active;
+        assert!(appchain_is_active, "The appchain isn't active");
+
+        let bridge_is_active = self
             .bridge_token_data_status
             .get(&token_id)
             .expect("This token isn't registered")
@@ -131,7 +142,7 @@ impl OctopusRelay {
                 .token_appchain_bridge_permitted
                 .get(&(token_id.clone(), appchain_id))
                 .unwrap_or(false);
-        assert!(is_active, "The bridge is paused or does not exist");
+        assert!(bridge_is_active, "The bridge is paused or does not exist");
 
         let staked_balance = self
             .appchain_data_staked_balance
