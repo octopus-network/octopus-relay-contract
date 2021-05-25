@@ -103,8 +103,8 @@ pub fn default_activate_appchain(relay: &UserAccount) -> ExecutionResult {
         "activate_appchain",
         &json!({
             "appchain_id": 0,
-            "boot_nodes": "boot_nodes_string",
-            "rpc_endpoint": "rpc_endpoint",
+            "boot_nodes": "[\"/ip4/13.230.75.107/tcp/30333/p2p/12D3KooWAxYKgdmTczLioD1jkzMyaDuV2Q5VHBsJxPr5zEmHr8nY\", \"/ip4/13.113.159.178/tcp/30333/p2p/12D3KooWSmLVShww4w9PVW17cCAS5C1JnXBU4NbY7FcGGjMyUGiq\",   \"/ip4/35.74.91.128/tcp/30333/p2p/12D3KooWT2umkS7F8GzUTLrfUzVBJPKn6YwCcuv6LBFQ27UPoo2Y\", \"/ip4/35.73.129.159/tcp/30333/p2p/12D3KooWHNf9JxUZKHoF7rrsmorv86gonXSb2ZU44CbMsnBNFSAJ\", ]",
+            "rpc_endpoint": "wss://barnacle.rpc.testnet.oct.network:9944",
         })
         .to_string()
         .into_bytes(),

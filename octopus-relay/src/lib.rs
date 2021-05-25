@@ -767,7 +767,7 @@ impl OctopusRelay {
             None,
             &self.token_contract_id,
             1,
-            SINGLE_CALL_GAS,
+            GAS_FOR_FT_TRANSFER_CALL,
         )
         .then(ext_self::resolve_activate_appchain(
             appchain_id,
@@ -775,7 +775,7 @@ impl OctopusRelay {
             rpc_endpoint,
             &env::current_account_id(),
             NO_DEPOSIT,
-            SINGLE_CALL_GAS,
+            env::prepaid_gas() / 2,
         ))
         .into()
     }
