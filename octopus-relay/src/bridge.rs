@@ -78,16 +78,6 @@ impl OctopusRelay {
             .insert(&token_id, &price.into());
     }
 
-    fn after_token_lock(&mut self, token_id: AccountId, appchain_id: AppchainId, amount: U128) {
-        let total_locked: Balance = self
-            .token_appchain_total_locked
-            .get(&(token_id.clone(), appchain_id))
-            .unwrap_or(0);
-        let next_total_locked = total_locked + u128::from(amount);
-        self.token_appchain_total_locked
-            .insert(&(token_id, appchain_id), &(next_total_locked));
-    }
-
     pub fn after_token_unlock(
         &mut self,
         token_id: AccountId,
@@ -118,11 +108,7 @@ impl OctopusRelay {
         }
     }
 
-    pub fn get_bridge_allowed_amount(
-        &mut self,
-        appchain_id: AppchainId,
-        token_id: AccountId,
-    ) -> U128 {
+    pub fn get_bridge_allowed_amount(&self, appchain_id: AppchainId, token_id: AccountId) -> U128 {
         let appchain_is_active = self
             .appchain_data_status
             .get(&appchain_id)
@@ -171,7 +157,7 @@ impl OctopusRelay {
         allowed_amount.into()
     }
 
-    pub fn get_bridge_is_allowed(
+    pub fn prepare_locking(
         &mut self,
         appchain_id: AppchainId,
         token_id: AccountId,
@@ -182,7 +168,13 @@ impl OctopusRelay {
             .into();
         let is_allowed = allowed_amount >= amount.into();
         if is_allowed {
-            self.after_token_lock(token_id, appchain_id, amount);
+            let total_locked: Balance = self
+                .token_appchain_total_locked
+                .get(&(token_id.clone(), appchain_id))
+                .unwrap_or(0);
+            let next_total_locked = total_locked + u128::from(amount);
+            self.token_appchain_total_locked
+                .insert(&(token_id, appchain_id), &(next_total_locked));
         }
         is_allowed
     }

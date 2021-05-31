@@ -83,7 +83,7 @@ near view $RELAY_CONTRACT_ID get_validators '{"appchain_id": 0}'
 near call $RELAY_CONTRACT_ID update_appchain '{"appchain_id": 0, "website_url": "website_url", "github_address": "github_address", "chain_spec_url": "chain_spec_url", "chain_spec_hash": "chain_spec_hash"}' --accountId $SIGNER
 
 # Activate appchain
-near call $RELAY_CONTRACT_ID activate_appchain '{"appchain_id": 0, "boot_nodes": "boot_nodes_string", "rpc_endpoint": "rpc_endpoint"}' --accountId $RELAY_CONTRACT_ID
+near call $RELAY_CONTRACT_ID activate_appchain '{"appchain_id": 0, "boot_nodes": "boot_nodes_string", "rpc_endpoint": "rpc_endpoint"}' --accountId $RELAY_CONTRACT_ID --gas 300000000000000
 
 # Get finalized validator_set
 near view $RELAY_CONTRACT_ID get_validator_set '{"appchain_id": 0}'
@@ -106,10 +106,10 @@ near call $RELAY_CONTRACT_ID set_bridge_permitted '{"token_id": "test-stable.tes
 # view bridge_token
 near view $RELAY_CONTRACT_ID get_bridge_token '{"token_id": "test-stable.testnet"}'
 
-# call and get get_bridge_allowed_amount
+# get get_bridge_allowed_amount
 near call $RELAY_CONTRACT_ID get_bridge_allowed_amount '{"appchain_id": 0, "token_id": "test-stable.testnet"}' --accountId $RELAY_CONTRACT_ID
 
-# get get_bridge_is_allowed
-near view $RELAY_CONTRACT_ID get_bridge_is_allowed '{"appchain_id": 0, "token_id": "test-stable.testnet", "amount": ""}'
+# get prepare_locking
+near view $RELAY_CONTRACT_ID prepare_locking '{"appchain_id": 0, "token_id": "test-stable.testnet", "amount": ""}'
 
 ```

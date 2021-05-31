@@ -43,7 +43,7 @@ pub fn default_register_appchain(
         })
         .to_string()
         .into_bytes(),
-        DEFAULT_GAS / 2,
+        DEFAULT_GAS,
         1,
     );
     outcome.assert_success();
@@ -67,7 +67,7 @@ pub fn default_staking(
         })
         .to_string()
         .into_bytes(),
-        DEFAULT_GAS / 2,
+        DEFAULT_GAS,
         1,
     );
     outcome.assert_success();
@@ -108,7 +108,7 @@ pub fn default_activate_appchain(relay: &UserAccount) -> ExecutionResult {
         })
         .to_string()
         .into_bytes(),
-        DEFAULT_GAS / 2,
+        DEFAULT_GAS,
         0,
     );
     outcome.assert_success();
@@ -176,7 +176,7 @@ pub fn lock_token(
 ) -> (ExecutionResult, u128) {
     let outcome = relay.call(
         relay.account_id(),
-        "after_token_lock",
+        "prepare_locking",
         &json!({
             "token_id": b_token.valid_account_id(),
             "appchain_id": 0,
@@ -191,7 +191,7 @@ pub fn lock_token(
     let bridge_allowed: U128 = root
         .view(
             relay.account_id(),
-            "get_bridge_allowed",
+            "get_bridge_allowed_amount",
             &json!({
                 "appchain_id": 0,
                 "token_id": b_token.valid_account_id()
@@ -351,7 +351,7 @@ fn simulate_set_bridge_permitted() {
     let bridge_allowed: U128 = root
         .view(
             relay.account_id(),
-            "get_bridge_allowed",
+            "get_bridge_allowed_amount",
             &json!({
                 "appchain_id": 0,
                 "token_id": b_token.valid_account_id()

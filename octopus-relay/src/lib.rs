@@ -688,7 +688,7 @@ impl OctopusRelay {
             validator.staked_amount.into(),
             &env::current_account_id(),
             NO_DEPOSIT,
-            SINGLE_CALL_GAS,
+            env::prepaid_gas() / 2,
         ));
     }
 
@@ -734,7 +734,7 @@ impl OctopusRelay {
         appchain_id: AppchainId,
         boot_nodes: String,
         rpc_endpoint: String,
-    ) -> PromiseOrValue<Option<AppchainStatus>> {
+    ) -> PromiseOrValue<U128> {
         if !self.appchain_data_name.contains_key(&appchain_id) {
             panic!("Appchain not found");
         }
@@ -775,7 +775,7 @@ impl OctopusRelay {
             rpc_endpoint,
             &env::current_account_id(),
             NO_DEPOSIT,
-            env::prepaid_gas() - env::used_gas(),
+            env::prepaid_gas() / 2,
         ))
         .into()
     }
