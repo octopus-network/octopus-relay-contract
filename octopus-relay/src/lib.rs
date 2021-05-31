@@ -12,7 +12,7 @@ use near_sdk::json_types::{ValidAccountId, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     assert_self, env, ext_contract, log, near_bindgen, wee_alloc, AccountId, Balance, BlockHeight,
-    PromiseOrValue,
+    PromiseOrValue, PromiseResult,
 };
 
 #[global_allocator]
@@ -775,7 +775,7 @@ impl OctopusRelay {
             rpc_endpoint,
             &env::current_account_id(),
             NO_DEPOSIT,
-            env::prepaid_gas() / 2,
+            env::prepaid_gas() - env::used_gas(),
         ))
         .into()
     }

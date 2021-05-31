@@ -78,12 +78,7 @@ impl OctopusRelay {
             .insert(&token_id, &price.into());
     }
 
-    pub fn after_token_lock(
-        &mut self,
-        token_id: AccountId,
-        appchain_id: AppchainId,
-        amount: U128,
-    ) -> U128 {
+    fn after_token_lock(&mut self, token_id: AccountId, appchain_id: AppchainId, amount: U128) {
         let total_locked: Balance = self
             .token_appchain_total_locked
             .get(&(token_id.clone(), appchain_id))
@@ -91,7 +86,6 @@ impl OctopusRelay {
         let next_total_locked = total_locked + u128::from(amount);
         self.token_appchain_total_locked
             .insert(&(token_id, appchain_id), &(next_total_locked));
-        next_total_locked.into()
     }
 
     pub fn after_token_unlock(
@@ -99,7 +93,7 @@ impl OctopusRelay {
         token_id: AccountId,
         appchain_id: AppchainId,
         amount: U128,
-    ) -> U128 {
+    ) {
         let total_locked: Balance = self
             .token_appchain_total_locked
             .get(&(token_id.clone(), appchain_id))
@@ -107,7 +101,6 @@ impl OctopusRelay {
         let next_total_locked = total_locked - u128::from(amount);
         self.token_appchain_total_locked
             .insert(&(token_id, appchain_id), &(next_total_locked));
-        next_total_locked.into()
     }
 
     pub fn get_bridge_token(&self, token_id: AccountId) -> Option<BridgeToken> {
@@ -125,7 +118,11 @@ impl OctopusRelay {
         }
     }
 
-    pub fn get_bridge_allowed(&self, appchain_id: AppchainId, token_id: AccountId) -> U128 {
+    pub fn get_bridge_allowed_amount(
+        &mut self,
+        appchain_id: AppchainId,
+        token_id: AccountId,
+    ) -> U128 {
         let appchain_is_active = self
             .appchain_data_status
             .get(&appchain_id)
@@ -172,5 +169,21 @@ impl OctopusRelay {
 
         let allowed_amount = rest_val * bt_decimals_base / token_price;
         allowed_amount.into()
+    }
+
+    pub fn get_bridge_is_allowed(
+        &mut self,
+        appchain_id: AppchainId,
+        token_id: AccountId,
+        amount: U128,
+    ) -> bool {
+        let allowed_amount: u128 = self
+            .get_bridge_allowed_amount(appchain_id, token_id.clone())
+            .into();
+        let is_allowed = allowed_amount >= amount.into();
+        if is_allowed {
+            self.after_token_lock(token_id, appchain_id, amount);
+        }
+        is_allowed
     }
 }
