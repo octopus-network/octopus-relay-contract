@@ -39,7 +39,7 @@ pub fn default_register_appchain(
         &json!({
             "receiver_id": relay.valid_account_id(),
             "amount": transfer_amount.to_string(),
-            "msg": "register_appchain,testchain,website_url_string,github_address_string",
+            "msg": "register_appchain,testchain,website_url_string,github_address_string,github_release_string,commit_id",
         })
         .to_string()
         .into_bytes(),
@@ -50,7 +50,31 @@ pub fn default_register_appchain(
     (outcome, transfer_amount)
 }
 
-pub fn default_staking(
+pub fn default_list_appchain(
+    root: &UserAccount,
+    oct: &UserAccount,
+    relay: &UserAccount,
+) -> (ExecutionResult, u128) {
+    register_user(&relay);
+    let (_, transfer_amount) = default_register_appchain(&root, &oct, &relay);
+    let outcome = relay.call(
+        relay.account_id(),
+        "list_appchain",
+        &json!({
+            "appchain_id": "testchain",
+            "chain_spec_url": "chain_spec_url",
+            "chain_spec_hash": "chain_spec_hash",
+        })
+        .to_string()
+        .into_bytes(),
+        DEFAULT_GAS,
+        0,
+    );
+    outcome.assert_success();
+    (outcome, transfer_amount)
+}
+
+pub fn default_stake(
     user: &UserAccount,
     oct: &UserAccount,
     relay: &UserAccount,
@@ -63,7 +87,7 @@ pub fn default_staking(
         &json!({
             "receiver_id": relay.valid_account_id(),
             "amount": transfer_amount.to_string(),
-            "msg": "staking,0,validator_id",
+            "msg": "stake,testchain,validator_id",
         })
         .to_string()
         .into_bytes(),
@@ -81,9 +105,11 @@ pub fn default_update_appchain(root: &UserAccount, relay: &UserAccount) -> Execu
         relay.account_id(),
         "update_appchain",
         &json!({
-            "appchain_id": 0,
+            "appchain_id": "testchain",
             "website_url": String::from("website_url_string"),
             "github_address": String::from("github_address_url"),
+            "github_release": String::from("github_release"),
+            "commit_id": String::from("commit_id"),
             "chain_spec_url": chain_spec_url,
             "chain_spec_hash": chain_spec_hash
         })
@@ -102,7 +128,7 @@ pub fn default_activate_appchain(relay: &UserAccount) -> ExecutionResult {
         relay.account_id(),
         "activate_appchain",
         &json!({
-            "appchain_id": 0,
+            "appchain_id": "testchain",
             "boot_nodes": "[\"/ip4/13.230.75.107/tcp/30333/p2p/12D3KooWAxYKgdmTczLioD1jkzMyaDuV2Q5VHBsJxPr5zEmHr8nY\", \"/ip4/13.113.159.178/tcp/30333/p2p/12D3KooWSmLVShww4w9PVW17cCAS5C1JnXBU4NbY7FcGGjMyUGiq\",   \"/ip4/35.74.91.128/tcp/30333/p2p/12D3KooWT2umkS7F8GzUTLrfUzVBJPKn6YwCcuv6LBFQ27UPoo2Y\", \"/ip4/35.73.129.159/tcp/30333/p2p/12D3KooWHNf9JxUZKHoF7rrsmorv86gonXSb2ZU44CbMsnBNFSAJ\", ]",
             "rpc_endpoint": "wss://barnacle.rpc.testnet.oct.network:9944",
         })
@@ -122,10 +148,9 @@ pub fn default_register_bridge_token(
     relay: &UserAccount,
     alice: &UserAccount,
 ) -> ExecutionResult {
-    default_register_appchain(&root, &oct, &relay);
-    default_staking(&root, &oct, &relay);
-    default_staking(&alice, &oct, &relay);
-    default_update_appchain(&root, &relay);
+    default_list_appchain(&root, &oct, &relay);
+    default_stake(&root, &oct, &relay);
+    default_stake(&alice, &oct, &relay);
     default_activate_appchain(&relay);
 
     let outcome = relay.call(
@@ -156,7 +181,7 @@ pub fn default_set_bridge_permitted(
         "set_bridge_permitted",
         &json!({
             "token_id": b_token.valid_account_id(),
-            "appchain_id": 0,
+            "appchain_id": "testchain",
             "permitted": permitted
         })
         .to_string()
@@ -179,7 +204,7 @@ pub fn lock_token(
         "prepare_locking",
         &json!({
             "token_id": b_token.valid_account_id(),
-            "appchain_id": 0,
+            "appchain_id": "testchain",
             "amount": U128::from(actual_amount * (10 as u128).pow(12))
         })
         .to_string()
@@ -193,7 +218,7 @@ pub fn lock_token(
             relay.account_id(),
             "get_bridge_allowed_amount",
             &json!({
-                "appchain_id": 0,
+                "appchain_id": "testchain",
                 "token_id": b_token.valid_account_id()
             })
             .to_string()
@@ -230,7 +255,7 @@ fn simulate_register_appchain() {
         logs[1],
         format!(
             "Appchain added, appchain_id is {}, bund_tokens is {}.",
-            0, transfer_amount
+            "testchain", transfer_amount
         )
     );
 
@@ -245,7 +270,7 @@ fn simulate_register_appchain() {
             relay.account_id(),
             "get_appchain",
             &json!({
-                "appchain_id": 0
+                "appchain_id": "testchain"
             })
             .to_string()
             .into_bytes(),
@@ -253,9 +278,8 @@ fn simulate_register_appchain() {
         .unwrap_json();
 
     let appchain = appchain_option.unwrap();
-    assert_eq!(appchain.id, 0);
+    assert_eq!(appchain.id, "testchain");
     assert_eq!(appchain.founder_id, root.account_id());
-    assert_eq!(appchain.appchain_name, String::from("testchain"));
     assert_eq!(appchain.chain_spec_url, String::from(""));
     assert_eq!(appchain.chain_spec_hash, String::from(""));
     assert_eq!(appchain.bond_tokens, U128::from(transfer_amount));
@@ -264,24 +288,57 @@ fn simulate_register_appchain() {
 }
 
 #[test]
+fn simulate_list_appchain() {
+    let (root, oct, _, relay, _) = default_init();
+    let (_, transfer_amount) = default_list_appchain(&root, &oct, &relay);
+
+    let num_appchains: usize = root
+        .view(relay.account_id(), "get_num_appchains", b"")
+        .unwrap_json();
+
+    assert_eq!(num_appchains, 1);
+
+    let appchain_option: Option<Appchain> = root
+        .view(
+            relay.account_id(),
+            "get_appchain",
+            &json!({
+                "appchain_id": "testchain"
+            })
+            .to_string()
+            .into_bytes(),
+        )
+        .unwrap_json();
+
+    let appchain = appchain_option.unwrap();
+    assert_eq!(appchain.id, "testchain");
+    assert_eq!(appchain.founder_id, root.account_id());
+    assert_eq!(appchain.chain_spec_url, String::from("chain_spec_url"));
+    assert_eq!(appchain.chain_spec_hash, String::from("chain_spec_hash"));
+    assert_eq!(appchain.bond_tokens, U128::from(transfer_amount));
+    assert_eq!(appchain.validators.len(), 0);
+    assert_eq!(appchain.status, AppchainStatus::Frozen);
+}
+
+#[test]
 fn simulate_update_appchain() {
     let (root, oct, _, relay, _) = default_init();
-    default_register_appchain(&root, &oct, &relay);
+    default_list_appchain(&root, &oct, &relay);
     default_update_appchain(&root, &relay);
 }
 
 #[test]
-fn simulate_staking() {
+fn simulate_stake() {
     let (root, oct, _, relay, _) = default_init();
-    default_register_appchain(&root, &oct, &relay);
-    let (outcome, transfer_amount) = default_staking(&root, &oct, &relay);
+    default_list_appchain(&root, &oct, &relay);
+    let (outcome, transfer_amount) = default_stake(&root, &oct, &relay);
     outcome.assert_success();
     let validators: Vec<Validator> = root
         .view(
             relay.account_id(),
             "get_validators",
             &json!({
-                "appchain_id": 0
+                "appchain_id": "testchain"
             })
             .to_string()
             .into_bytes(),
@@ -297,9 +354,9 @@ fn simulate_staking() {
 #[test]
 fn simulate_activate_appchain() {
     let (root, oct, _, relay, alice) = default_init();
-    default_register_appchain(&root, &oct, &relay);
-    default_staking(&root, &oct, &relay);
-    default_staking(&alice, &oct, &relay);
+    default_list_appchain(&root, &oct, &relay);
+    default_stake(&root, &oct, &relay);
+    default_stake(&alice, &oct, &relay);
     default_update_appchain(&root, &relay);
     default_activate_appchain(&relay);
 
@@ -308,7 +365,7 @@ fn simulate_activate_appchain() {
             relay.account_id(),
             "get_appchain",
             &json!({
-                "appchain_id": 0
+                "appchain_id": "testchain"
             })
             .to_string()
             .into_bytes(),
@@ -353,7 +410,7 @@ fn simulate_set_bridge_permitted() {
             relay.account_id(),
             "get_bridge_allowed_amount",
             &json!({
-                "appchain_id": 0,
+                "appchain_id": "testchain",
                 "token_id": b_token.valid_account_id()
             })
             .to_string()

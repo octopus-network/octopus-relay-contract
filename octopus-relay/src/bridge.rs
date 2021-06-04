@@ -59,10 +59,10 @@ impl OctopusRelay {
         appchain_id: AppchainId,
         permitted: bool,
     ) {
-        assert!(
-            self.appchain_data_name.contains_key(&appchain_id),
-            "Appchain not found"
-        );
+        // assert!(
+        //     self.appchain_data_name.contains_key(&appchain_id),
+        //     "Appchain not found"
+        // );
         self.token_appchain_bridge_permitted
             .insert(&(token_id, appchain_id), &permitted);
     }
@@ -86,7 +86,7 @@ impl OctopusRelay {
     ) {
         let total_locked: Balance = self
             .token_appchain_total_locked
-            .get(&(token_id.clone(), appchain_id))
+            .get(&(token_id.clone(), appchain_id.clone()))
             .unwrap_or(0);
         let next_total_locked = total_locked - u128::from(amount);
         self.token_appchain_total_locked
@@ -123,7 +123,7 @@ impl OctopusRelay {
             == BridgeStatus::Active
             && self
                 .token_appchain_bridge_permitted
-                .get(&(token_id.clone(), appchain_id))
+                .get(&(token_id.clone(), appchain_id.clone()))
                 .unwrap_or(false);
         assert!(bridge_is_active, "The bridge is paused or does not exist");
 
@@ -145,7 +145,7 @@ impl OctopusRelay {
             let bt_price = self.bridge_token_data_price.get(&bt_id).unwrap();
             let bt_locked = self
                 .token_appchain_total_locked
-                .get(&(bt_id, appchain_id))
+                .get(&(bt_id, appchain_id.clone()))
                 .unwrap_or(0);
             let used_val: Balance = bt_locked * bt_price / bt_decimals_base;
             total_used_val += used_val;
@@ -164,13 +164,13 @@ impl OctopusRelay {
         amount: U128,
     ) -> bool {
         let allowed_amount: u128 = self
-            .get_bridge_allowed_amount(appchain_id, token_id.clone())
+            .get_bridge_allowed_amount(appchain_id.clone(), token_id.clone())
             .into();
         let is_allowed = allowed_amount >= amount.into();
         if is_allowed {
             let total_locked: Balance = self
                 .token_appchain_total_locked
-                .get(&(token_id.clone(), appchain_id))
+                .get(&(token_id.clone(), appchain_id.clone()))
                 .unwrap_or(0);
             let next_total_locked = total_locked + u128::from(amount);
             self.token_appchain_total_locked

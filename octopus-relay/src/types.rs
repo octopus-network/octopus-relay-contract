@@ -74,11 +74,12 @@ pub struct ValidatorSet {
 #[derive(Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Appchain {
-    pub id: u32,
+    pub id: String,
     pub founder_id: AccountId,
-    pub appchain_name: String,
     pub website_url: String,
     pub github_address: String,
+    pub github_release: String,
+    pub commit_id: String,
     pub chain_spec_url: String,
     pub chain_spec_hash: String,
     pub boot_nodes: String,
