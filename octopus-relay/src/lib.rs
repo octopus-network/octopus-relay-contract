@@ -51,6 +51,8 @@ pub struct OctopusRelay {
     pub appchain_data_commit_id: LookupMap<AppchainId, String>,
     pub appchain_data_chain_spec_url: LookupMap<AppchainId, String>,
     pub appchain_data_chain_spec_hash: LookupMap<AppchainId, String>,
+    pub appchain_data_chain_spec_raw_url: LookupMap<AppchainId, String>,
+    pub appchain_data_chain_spec_raw_hash: LookupMap<AppchainId, String>,
     pub appchain_data_boot_nodes: LookupMap<AppchainId, String>,
     pub appchain_data_rpc_endpoint: LookupMap<AppchainId, String>,
     pub appchain_data_bond_tokens: LookupMap<AppchainId, Balance>,
@@ -137,6 +139,8 @@ impl OctopusRelay {
             appchain_data_commit_id: LookupMap::new(b"gcl".to_vec()),
             appchain_data_chain_spec_url: LookupMap::new(b"csu".to_vec()),
             appchain_data_chain_spec_hash: LookupMap::new(b"csh".to_vec()),
+            appchain_data_chain_spec_raw_url: LookupMap::new(b"csru".to_vec()),
+            appchain_data_chain_spec_raw_hash: LookupMap::new(b"csrh".to_vec()),
             appchain_data_boot_nodes: LookupMap::new(b"bn".to_vec()),
             appchain_data_rpc_endpoint: LookupMap::new(b"re".to_vec()),
             appchain_data_bond_tokens: LookupMap::new(b"bt".to_vec()),
@@ -289,6 +293,8 @@ impl OctopusRelay {
         self.appchain_data_commit_id.remove(&appchain_id);
         self.appchain_data_chain_spec_url.remove(&appchain_id);
         self.appchain_data_chain_spec_hash.remove(&appchain_id);
+        self.appchain_data_chain_spec_raw_url.remove(&appchain_id);
+        self.appchain_data_chain_spec_raw_hash.remove(&appchain_id);
         self.appchain_data_boot_nodes.remove(&appchain_id);
         self.appchain_data_rpc_endpoint.remove(&appchain_id);
         self.appchain_data_bond_tokens.remove(&appchain_id);
@@ -304,6 +310,8 @@ impl OctopusRelay {
         appchain_id: AppchainId,
         chain_spec_url: String,
         chain_spec_hash: String,
+        chain_spec_raw_url: String,
+        chain_spec_raw_hash: String,
     ) {
         self.assert_owner();
         let candidate_appchain = self
@@ -318,6 +326,10 @@ impl OctopusRelay {
             .insert(&appchain_id, &chain_spec_url);
         self.appchain_data_chain_spec_hash
             .insert(&appchain_id, &chain_spec_hash);
+        self.appchain_data_chain_spec_raw_url
+            .insert(&appchain_id, &chain_spec_raw_url);
+        self.appchain_data_chain_spec_raw_hash
+            .insert(&appchain_id, &chain_spec_raw_hash);
         self.appchain_data_status
             .insert(&appchain_id, &AppchainStatus::Frozen);
     }
@@ -331,6 +343,8 @@ impl OctopusRelay {
         commit_id: String,
         chain_spec_url: String,
         chain_spec_hash: String,
+        chain_spec_raw_url: String,
+        chain_spec_raw_hash: String,
     ) {
         assert_ne!(
             self.appchain_data_status
@@ -358,6 +372,10 @@ impl OctopusRelay {
             .insert(&appchain_id, &chain_spec_url);
         self.appchain_data_chain_spec_hash
             .insert(&appchain_id, &chain_spec_hash);
+        self.appchain_data_chain_spec_raw_url
+            .insert(&appchain_id, &chain_spec_raw_url);
+        self.appchain_data_chain_spec_raw_hash
+            .insert(&appchain_id, &chain_spec_raw_hash);
         self.appchain_data_status
             .insert(&appchain_id, &AppchainStatus::Frozen);
     }
@@ -421,6 +439,16 @@ impl OctopusRelay {
                     .clone(),
                 chain_spec_hash: self
                     .appchain_data_chain_spec_hash
+                    .get(&appchain_id)
+                    .unwrap_or(String::from(""))
+                    .clone(),
+                chain_spec_raw_url: self
+                    .appchain_data_chain_spec_raw_url
+                    .get(&appchain_id)
+                    .unwrap_or(String::from(""))
+                    .clone(),
+                chain_spec_raw_hash: self
+                    .appchain_data_chain_spec_raw_hash
                     .get(&appchain_id)
                     .unwrap_or(String::from(""))
                     .clone(),

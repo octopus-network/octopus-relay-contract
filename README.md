@@ -69,7 +69,7 @@ near call $TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT
 
 
 # List appchain
-near call $RELAY_CONTRACT_ID list_appchain '{"appchain_id": "testchain","chain_spec_url": "chain_spec_url","chain_spec_hash": "chain_spec_hash"}' --accountId $RELAY_CONTRACT_ID --gas 300000000000000
+near call $RELAY_CONTRACT_ID list_appchain '{"appchain_id": "testchain","chain_spec_url": "chain_spec_url","chain_spec_hash": "chain_spec_hash", "chain_spec_raw_url": "chain_spec_raw_url", "chain_spec_raw_hash": "chain_spec_raw_hash"}' --accountId $RELAY_CONTRACT_ID --gas 300000000000000
 
 # View appchain
 near view $RELAY_CONTRACT_ID get_appchain '{"appchain_id": "testchain"}'

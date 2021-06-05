@@ -82,6 +82,8 @@ pub struct Appchain {
     pub commit_id: String,
     pub chain_spec_url: String,
     pub chain_spec_hash: String,
+    pub chain_spec_raw_url: String,
+    pub chain_spec_raw_hash: String,
     pub boot_nodes: String,
     pub rpc_endpoint: String,
     pub bond_tokens: U128,

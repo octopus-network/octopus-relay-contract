@@ -64,6 +64,8 @@ pub fn default_list_appchain(
             "appchain_id": "testchain",
             "chain_spec_url": "chain_spec_url",
             "chain_spec_hash": "chain_spec_hash",
+            "chain_spec_raw_url": "chain_spec_raw_url",
+            "chain_spec_raw_hash": "chain_spec_raw_hash",
         })
         .to_string()
         .into_bytes(),
@@ -101,6 +103,8 @@ pub fn default_stake(
 pub fn default_update_appchain(root: &UserAccount, relay: &UserAccount) -> ExecutionResult {
     let chain_spec_url: &str = "https://xxxxxx.xom";
     let chain_spec_hash: &str = "chain_spec_hash";
+    let chain_spec_raw_url: &str = "https://xxxxxx_raw.xom";
+    let chain_spec_raw_hash: &str = "chain_spec_raw_hash";
     let outcome = root.call(
         relay.account_id(),
         "update_appchain",
@@ -111,7 +115,9 @@ pub fn default_update_appchain(root: &UserAccount, relay: &UserAccount) -> Execu
             "github_release": String::from("github_release"),
             "commit_id": String::from("commit_id"),
             "chain_spec_url": chain_spec_url,
-            "chain_spec_hash": chain_spec_hash
+            "chain_spec_hash": chain_spec_hash,
+            "chain_spec_raw_url": chain_spec_raw_url,
+            "chain_spec_raw_hash": chain_spec_raw_hash
         })
         .to_string()
         .into_bytes(),
@@ -282,6 +288,8 @@ fn simulate_register_appchain() {
     assert_eq!(appchain.founder_id, root.account_id());
     assert_eq!(appchain.chain_spec_url, String::from(""));
     assert_eq!(appchain.chain_spec_hash, String::from(""));
+    assert_eq!(appchain.chain_spec_raw_url, String::from(""));
+    assert_eq!(appchain.chain_spec_raw_hash, String::from(""));
     assert_eq!(appchain.bond_tokens, U128::from(transfer_amount));
     assert_eq!(appchain.validators.len(), 0);
     assert_eq!(appchain.status, AppchainStatus::InProgress);
@@ -315,6 +323,14 @@ fn simulate_list_appchain() {
     assert_eq!(appchain.founder_id, root.account_id());
     assert_eq!(appchain.chain_spec_url, String::from("chain_spec_url"));
     assert_eq!(appchain.chain_spec_hash, String::from("chain_spec_hash"));
+    assert_eq!(
+        appchain.chain_spec_raw_url,
+        String::from("chain_spec_raw_url")
+    );
+    assert_eq!(
+        appchain.chain_spec_raw_hash,
+        String::from("chain_spec_raw_hash")
+    );
     assert_eq!(appchain.bond_tokens, U128::from(transfer_amount));
     assert_eq!(appchain.validators.len(), 0);
     assert_eq!(appchain.status, AppchainStatus::Frozen);
