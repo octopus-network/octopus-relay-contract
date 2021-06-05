@@ -63,7 +63,7 @@ pub struct OctopusRelay {
     pub appchain_data_staked_balance: LookupMap<AppchainId, Balance>,
 
     pub appchain_data_validator_sets_len: LookupMap<AppchainId, SeqNum>,
-    pub appchain_data_validator_set: LookupMap<(AppchainId, SeqNum), ValidatorSet>,
+    pub appchain_data_validator_set: UnorderedMap<(AppchainId, SeqNum), ValidatorSet>,
 
     // data for Validator
     pub validator_data_account_id: LookupMap<(AppchainId, ValidatorId), AccountId>,
@@ -151,7 +151,7 @@ impl OctopusRelay {
             appchain_data_staked_balance: LookupMap::new(b"sb".to_vec()),
 
             appchain_data_validator_sets_len: LookupMap::new(b"vsl".to_vec()),
-            appchain_data_validator_set: LookupMap::new(b"vs".to_vec()),
+            appchain_data_validator_set: UnorderedMap::new(b"vs".to_vec()),
 
             validator_data_account_id: LookupMap::new(b"ai".to_vec()),
             validator_data_weight: LookupMap::new(b"we".to_vec()),
@@ -303,6 +303,8 @@ impl OctopusRelay {
         self.appchain_data_status.remove(&appchain_id);
         self.appchain_data_block_height.remove(&appchain_id);
         self.appchain_data_staked_balance.remove(&appchain_id);
+        self.appchain_data_validator_sets_len.remove(&appchain_id);
+        self.appchain_data_validator_set.clear();
     }
 
     pub fn list_appchain(
@@ -679,7 +681,11 @@ impl OctopusRelay {
         for v in validators {
             assert!(
                 v.account_id != account_id,
-                "You are already staked on the appchain!"
+                "Your account is already staked on the appchain!"
+            );
+            assert!(
+                v.id != id,
+                "This validator is already staked on the appchain!"
             );
         }
 

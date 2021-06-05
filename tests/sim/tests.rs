@@ -83,13 +83,16 @@ pub fn default_stake(
 ) -> (ExecutionResult, u128) {
     register_user(&relay);
     let transfer_amount = to_yocto("200");
+    let mut msg = "stake,testchain,".to_owned();
+    msg.push_str(user.valid_account_id().to_string().as_ref());
+
     let outcome = user.call(
         oct.account_id(),
         "ft_transfer_call",
         &json!({
             "receiver_id": relay.valid_account_id(),
             "amount": transfer_amount.to_string(),
-            "msg": "stake,testchain,validator_id",
+            "msg": msg,
         })
         .to_string()
         .into_bytes(),
@@ -361,7 +364,7 @@ fn simulate_stake() {
         )
         .unwrap_json();
     let validator = validators.get(0).unwrap();
-    assert_eq!(validator.id, "validator_id");
+    assert_eq!(validator.id, root.valid_account_id().to_string().as_ref());
     assert_eq!(validator.account_id, "root");
     assert_eq!(validator.weight, 200);
     assert_eq!(validator.staked_amount, U128::from(transfer_amount));
