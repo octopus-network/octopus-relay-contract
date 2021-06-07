@@ -278,7 +278,12 @@ impl OctopusRelay {
 
     pub fn remove_appchain(&mut self, appchain_id: AppchainId) {
         self.assert_owner();
-
+        assert_eq!(
+            self.appchain_data_status
+                .get(&appchain_id)
+                .expect("Appchain not found."),
+            AppchainStatus::InProgress
+        );
         let index = self
             .appchain_id_list
             .to_vec()
@@ -821,35 +826,37 @@ impl OctopusRelay {
         account_id: AccountId,
         amount: U128,
     ) {
-        let amount: u128 = amount.0;
-        let mut validator_ids = self
-            .appchain_data_validator_ids
-            .get(&appchain_id)
-            .expect("Appchain not found")
-            .clone();
-
-        // Remove the validator
-        validator_ids.retain(|v| {
-            self.validator_data_account_id
-                .get(&(appchain_id.clone(), v.to_string()))
-                .unwrap()
-                != account_id
-        });
-
-        // Update state
-        self.appchain_data_validator_ids
-            .insert(&appchain_id, &validator_ids);
-
-        let staked_balance = self
-            .appchain_data_staked_balance
-            .get(&appchain_id)
-            .unwrap_or(0);
-        self.appchain_data_staked_balance
-            .insert(&appchain_id, &(staked_balance - amount));
-        self.total_staked_balance -= amount;
-
-        // // Check to update validator set
-        self.update_validator_set(appchain_id);
+        match env::promise_result(0) {
+            PromiseResult::NotReady => unreachable!(),
+            PromiseResult::Successful(_) => {
+                let amount: u128 = amount.0;
+                let mut validator_ids = self
+                    .appchain_data_validator_ids
+                    .get(&appchain_id)
+                    .expect("Appchain not found")
+                    .clone();
+                // Remove the validator
+                validator_ids.retain(|v| {
+                    self.validator_data_account_id
+                        .get(&(appchain_id.clone(), v.to_string()))
+                        .unwrap()
+                        != account_id
+                });
+                // Update state
+                self.appchain_data_validator_ids
+                    .insert(&appchain_id, &validator_ids);
+                let staked_balance = self
+                    .appchain_data_staked_balance
+                    .get(&appchain_id)
+                    .unwrap_or(0);
+                self.appchain_data_staked_balance
+                    .insert(&appchain_id, &(staked_balance - amount));
+                self.total_staked_balance -= amount;
+                // // Check to update validator set
+                self.update_validator_set(appchain_id);
+            }
+            PromiseResult::Failed => {}
+        }
     }
 
     pub fn activate_appchain(
@@ -914,17 +921,23 @@ impl OctopusRelay {
         rpc_endpoint: String,
     ) -> Option<AppchainStatus> {
         // Update state
-        self.appchain_data_status
-            .insert(&appchain_id, &AppchainStatus::Active);
-        self.appchain_data_boot_nodes
-            .insert(&appchain_id, &boot_nodes);
-        self.appchain_data_rpc_endpoint
-            .insert(&appchain_id, &rpc_endpoint);
-        self.appchain_data_bond_tokens.insert(&appchain_id, &0);
+        match env::promise_result(0) {
+            PromiseResult::NotReady => unreachable!(),
+            PromiseResult::Successful(_) => {
+                self.appchain_data_status
+                    .insert(&appchain_id, &AppchainStatus::Active);
+                self.appchain_data_boot_nodes
+                    .insert(&appchain_id, &boot_nodes);
+                self.appchain_data_rpc_endpoint
+                    .insert(&appchain_id, &rpc_endpoint);
+                self.appchain_data_bond_tokens.insert(&appchain_id, &0);
 
-        // Check to update validator set
-        self.update_validator_set(appchain_id.clone());
-        self.appchain_data_status.get(&appchain_id)
+                // Check to update validator set
+                self.update_validator_set(appchain_id.clone());
+                self.appchain_data_status.get(&appchain_id)
+            }
+            PromiseResult::Failed => self.appchain_data_status.get(&appchain_id),
+        }
     }
 
     pub fn freeze_appchain(&mut self, appchain_id: AppchainId) {
