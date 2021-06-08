@@ -112,7 +112,7 @@ impl OctopusRelay {
         let appchain_is_active = self
             .appchain_data_status
             .get(&appchain_id)
-            .unwrap_or(AppchainStatus::InProgress)
+            .unwrap_or(AppchainStatus::Auditing)
             == AppchainStatus::Active;
         assert!(appchain_is_active, "The appchain isn't active");
 
@@ -155,27 +155,5 @@ impl OctopusRelay {
 
         let allowed_amount = rest_val * bt_decimals_base / token_price;
         allowed_amount.into()
-    }
-
-    pub fn prepare_locking(
-        &mut self,
-        appchain_id: AppchainId,
-        token_id: AccountId,
-        amount: U128,
-    ) -> bool {
-        let allowed_amount: u128 = self
-            .get_bridge_allowed_amount(appchain_id.clone(), token_id.clone())
-            .into();
-        let is_allowed = allowed_amount >= amount.into();
-        if is_allowed {
-            let total_locked: Balance = self
-                .token_appchain_total_locked
-                .get(&(token_id.clone(), appchain_id.clone()))
-                .unwrap_or(0);
-            let next_total_locked = total_locked + u128::from(amount);
-            self.token_appchain_total_locked
-                .insert(&(token_id, appchain_id), &(next_total_locked));
-        }
-        is_allowed
     }
 }

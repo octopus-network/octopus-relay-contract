@@ -3,8 +3,8 @@ pub mod types;
 
 // To conserve gas, efficient serialization is achieved through Borsh (http://borsh.io/)
 use crate::types::{
-    Appchain, AppchainStatus, BridgeStatus, BridgeToken, Delegation, LiteValidator, Validator,
-    ValidatorSet,
+    Appchain, AppchainStatus, BridgeStatus, BridgeToken, Delegation, LiteValidator, Locked,
+    LockerStatus, Validator, ValidatorSet,
 };
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedMap, Vector};
@@ -89,6 +89,10 @@ pub struct OctopusRelay {
 
     pub token_appchain_bridge_permitted: LookupMap<(AccountId, AppchainId), bool>,
     pub token_appchain_total_locked: LookupMap<(AccountId, AppchainId), Balance>,
+
+    status: LockerStatus,
+    locked_appchain_map: LookupMap<(AppchainId, SeqNum), Locked>,
+    locked_len_appchain_map: LookupMap<AppchainId, SeqNum>,
 }
 
 #[ext_contract(ext_self)]
@@ -100,6 +104,7 @@ pub trait ExtOctopusRelay {
         boot_nodes: String,
         rpc_endpoint: String,
     );
+    fn resolve_remove_appchain(&mut self, index: u32, appchain_id: AppchainId);
 }
 
 #[ext_contract(ext_token)]
@@ -175,6 +180,10 @@ impl OctopusRelay {
 
             token_appchain_bridge_permitted: LookupMap::new(b"tas".to_vec()),
             token_appchain_total_locked: LookupMap::new(b"tab".to_vec()),
+
+            status: LockerStatus::default(),
+            locked_appchain_map: LookupMap::new(b"la".to_vec()),
+            locked_len_appchain_map: LookupMap::new(b"ll".to_vec()),
         }
     }
 
@@ -185,11 +194,6 @@ impl OctopusRelay {
         msg: String,
     ) -> PromiseOrValue<U128> {
         // Verifying that we were called by fungible token contract that we expect.
-        assert_eq!(
-            &env::predecessor_account_id(),
-            &self.token_contract_id,
-            "Only supports the OCT token contract"
-        );
         log!(
             "in {} tokens from @{} ft_on_transfer, msg = {}",
             amount.0,
@@ -201,6 +205,11 @@ impl OctopusRelay {
 
         match msg_vec.get(0).unwrap().as_str() {
             "register_appchain" => {
+                assert_eq!(
+                    &env::predecessor_account_id(),
+                    &self.token_contract_id,
+                    "Only supports the OCT token contract"
+                );
                 assert_eq!(msg_vec.len(), 6, "params length wrong!");
                 self.register_appchain(
                     msg_vec.get(1).unwrap().to_string(),
@@ -213,6 +222,11 @@ impl OctopusRelay {
                 PromiseOrValue::Value(0.into())
             }
             "stake" => {
+                assert_eq!(
+                    &env::predecessor_account_id(),
+                    &self.token_contract_id,
+                    "Only supports the OCT token contract"
+                );
                 assert_eq!(msg_vec.len(), 3, "params length wrong!");
                 self.stake(
                     msg_vec.get(1).unwrap().to_string(),
@@ -222,8 +236,24 @@ impl OctopusRelay {
                 PromiseOrValue::Value(0.into())
             }
             "stake_more" => {
+                assert_eq!(
+                    &env::predecessor_account_id(),
+                    &self.token_contract_id,
+                    "Only supports the OCT token contract"
+                );
                 assert_eq!(msg_vec.len(), 2, "params length wrong!");
                 self.stake_more(msg_vec.get(1).unwrap().to_string(), amount.0);
+                PromiseOrValue::Value(0.into())
+            }
+            "lock_token" => {
+                let token_id = env::predecessor_account_id();
+                assert_eq!(msg_vec.len(), 3, "params length wrong!");
+                self.lock_token(
+                    msg_vec.get(1).unwrap().to_string(),
+                    msg_vec.get(2).unwrap().to_string(),
+                    token_id,
+                    amount.0,
+                );
                 PromiseOrValue::Value(0.into())
             }
             _ => {
@@ -260,7 +290,7 @@ impl OctopusRelay {
         self.appchain_data_bond_tokens
             .insert(&appchain_id, &bond_tokens);
         self.appchain_data_status
-            .insert(&appchain_id, &AppchainStatus::InProgress);
+            .insert(&appchain_id, &AppchainStatus::Auditing);
         self.appchain_data_validator_ids
             .insert(&appchain_id, &Vec::default());
         self.appchain_data_block_height
@@ -282,34 +312,71 @@ impl OctopusRelay {
             self.appchain_data_status
                 .get(&appchain_id)
                 .expect("Appchain not found."),
-            AppchainStatus::InProgress
+            AppchainStatus::Auditing,
+            "appchain can only be removed in auditing status"
         );
         let index = self
             .appchain_id_list
             .to_vec()
             .iter()
             .position(|id| id.clone() == appchain_id)
-            .unwrap();
-        self.appchain_id_list.swap_remove(index as u64);
-        self.appchain_data_founder_id.remove(&appchain_id);
-        self.appchain_data_website_url.remove(&appchain_id);
-        self.appchain_data_github_address.remove(&appchain_id);
-        self.appchain_data_github_release.remove(&appchain_id);
-        self.appchain_data_commit_id.remove(&appchain_id);
-        self.appchain_data_chain_spec_url.remove(&appchain_id);
-        self.appchain_data_chain_spec_hash.remove(&appchain_id);
-        self.appchain_data_chain_spec_raw_url.remove(&appchain_id);
-        self.appchain_data_chain_spec_raw_hash.remove(&appchain_id);
-        self.appchain_data_boot_nodes.remove(&appchain_id);
-        self.appchain_data_rpc_endpoint.remove(&appchain_id);
-        self.appchain_data_bond_tokens.remove(&appchain_id);
-        self.appchain_data_validator_ids.remove(&appchain_id);
-        self.appchain_data_validators_timestamp.remove(&appchain_id);
-        self.appchain_data_status.remove(&appchain_id);
-        self.appchain_data_block_height.remove(&appchain_id);
-        self.appchain_data_staked_balance.remove(&appchain_id);
-        self.appchain_data_validator_sets_len.remove(&appchain_id);
-        self.appchain_data_validator_set.clear();
+            .expect("Appchain not exists") as u32;
+
+        let bond_tokens = self
+            .appchain_data_bond_tokens
+            .get(&appchain_id)
+            .expect("Appchain not exists");
+        let account_id = self
+            .appchain_data_founder_id
+            .get(&appchain_id)
+            .unwrap()
+            .clone();
+
+        ext_token::ft_transfer(
+            account_id,
+            (bond_tokens / 10).into(),
+            None,
+            &self.token_contract_id,
+            1,
+            GAS_FOR_FT_TRANSFER_CALL,
+        )
+        .then(ext_self::resolve_remove_appchain(
+            index,
+            appchain_id.clone(),
+            &env::current_account_id(),
+            NO_DEPOSIT,
+            env::prepaid_gas() / 2,
+        ));
+    }
+
+    pub fn resolve_remove_appchain(&mut self, index: u32, appchain_id: AppchainId) {
+        // Update state
+        match env::promise_result(0) {
+            PromiseResult::NotReady => unreachable!(),
+            PromiseResult::Successful(_) => {
+                self.appchain_id_list.swap_remove(index as u64);
+                self.appchain_data_founder_id.remove(&appchain_id);
+                self.appchain_data_website_url.remove(&appchain_id);
+                self.appchain_data_github_address.remove(&appchain_id);
+                self.appchain_data_github_release.remove(&appchain_id);
+                self.appchain_data_commit_id.remove(&appchain_id);
+                self.appchain_data_chain_spec_url.remove(&appchain_id);
+                self.appchain_data_chain_spec_hash.remove(&appchain_id);
+                self.appchain_data_chain_spec_raw_url.remove(&appchain_id);
+                self.appchain_data_chain_spec_raw_hash.remove(&appchain_id);
+                self.appchain_data_boot_nodes.remove(&appchain_id);
+                self.appchain_data_rpc_endpoint.remove(&appchain_id);
+                self.appchain_data_bond_tokens.remove(&appchain_id);
+                self.appchain_data_validator_ids.remove(&appchain_id);
+                self.appchain_data_validators_timestamp.remove(&appchain_id);
+                self.appchain_data_status.remove(&appchain_id);
+                self.appchain_data_block_height.remove(&appchain_id);
+                self.appchain_data_staked_balance.remove(&appchain_id);
+                self.appchain_data_validator_sets_len.remove(&appchain_id);
+                self.appchain_data_validator_set.clear();
+            }
+            PromiseResult::Failed => {}
+        }
     }
 
     pub fn list_appchain(
@@ -326,8 +393,8 @@ impl OctopusRelay {
             .expect("Appchain not found");
         assert_eq!(
             &candidate_appchain.status,
-            &AppchainStatus::InProgress,
-            "Appchain is not in progress."
+            &AppchainStatus::Auditing,
+            "Appchain is not in auditing."
         );
         self.appchain_data_chain_spec_url
             .insert(&appchain_id, &chain_spec_url);
@@ -357,8 +424,8 @@ impl OctopusRelay {
             self.appchain_data_status
                 .get(&appchain_id)
                 .expect("Appchain not found"),
-            AppchainStatus::InProgress,
-            "Appchain is in progress."
+            AppchainStatus::Auditing,
+            "Appchain is in auditing."
         );
 
         let account_id = env::signer_account_id();
@@ -670,8 +737,8 @@ impl OctopusRelay {
             self.appchain_data_status
                 .get(&appchain_id)
                 .expect("Appchain not found"),
-            AppchainStatus::InProgress,
-            "Appchain is in progress."
+            AppchainStatus::Auditing,
+            "Appchain is in auditing."
         );
         let account_id = env::signer_account_id();
         // Check amount
@@ -733,8 +800,8 @@ impl OctopusRelay {
             self.appchain_data_status
                 .get(&appchain_id)
                 .expect("Appchain not found"),
-            AppchainStatus::InProgress,
-            "Appchain is in progress."
+            AppchainStatus::Auditing,
+            "Appchain is in auditing."
         );
 
         let account_id = env::signer_account_id();
@@ -790,8 +857,8 @@ impl OctopusRelay {
             self.appchain_data_status
                 .get(&appchain_id)
                 .expect("Appchain not found"),
-            AppchainStatus::InProgress,
-            "Appchain is in progress."
+            AppchainStatus::Auditing,
+            "Appchain is in auditing."
         );
 
         let account_id = env::signer_account_id();
@@ -869,8 +936,8 @@ impl OctopusRelay {
             self.appchain_data_status
                 .get(&appchain_id)
                 .expect("Appchain not found"),
-            AppchainStatus::InProgress,
-            "Appchain is in progress."
+            AppchainStatus::Auditing,
+            "Appchain is in auditing."
         );
         // Only admin can do this
         self.assert_owner();
@@ -1021,6 +1088,63 @@ impl Ownable for OctopusRelay {
     fn set_owner(&mut self, owner: AccountId) {
         self.assert_owner();
         self.owner = owner;
+    }
+}
+
+#[near_bindgen]
+impl OctopusRelay {
+    fn lock_token(
+        &mut self,
+        appchain_id: AppchainId,
+        receiver_id: String,
+        token_id: AccountId,
+        amount: u128,
+    ) -> U128 {
+        let allowed_amount: u128 = self
+            .get_bridge_allowed_amount(appchain_id.clone(), token_id.clone())
+            .into();
+        assert!(allowed_amount >= amount.into(), "Bridge not allowed");
+
+        let total_locked: Balance = self
+            .token_appchain_total_locked
+            .get(&(token_id.clone(), appchain_id.clone()))
+            .unwrap_or(0);
+        let next_total_locked = total_locked + u128::from(amount);
+        self.token_appchain_total_locked.insert(
+            &(token_id.clone(), appchain_id.clone()),
+            &(next_total_locked),
+        );
+        let seq_num = self.locked_len_appchain_map.get(&appchain_id).unwrap_or(0);
+        self.locked_len_appchain_map
+            .insert(&appchain_id, &(seq_num + 1));
+        self.locked_appchain_map.insert(
+            &(appchain_id.clone(), seq_num),
+            &Locked {
+                seq_num,
+                token_id,
+                appchain_id,
+                receiver_id,
+                amount: amount.into(),
+                block_height: env::block_index(),
+            },
+        );
+        amount.into()
+    }
+
+    pub fn get_locked_events(
+        &self,
+        appchain_id: AppchainId,
+        start: SeqNum,
+        limit: SeqNum,
+    ) -> Vec<Locked> {
+        let locked_len = self.locked_len_appchain_map.get(&appchain_id).unwrap();
+        (start..std::cmp::min(start + limit, locked_len))
+            .map(|index| {
+                self.locked_appchain_map
+                    .get(&(appchain_id.clone(), index))
+                    .unwrap()
+            })
+            .collect()
     }
 }
 

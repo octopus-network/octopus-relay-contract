@@ -11,14 +11,14 @@ pub enum Vote {
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub enum AppchainStatus {
-    InProgress,
+    Auditing,
     Frozen,
     Active,
 }
 
 impl Default for AppchainStatus {
     fn default() -> Self {
-        AppchainStatus::Frozen
+        AppchainStatus::Auditing
     }
 }
 
@@ -116,4 +116,28 @@ pub struct BridgeToken {
     pub status: BridgeStatus,
     pub price: U128,
     pub decimals: u32,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug, PartialEq)]
+#[serde(crate = "near_sdk::serde")]
+pub enum LockerStatus {
+    Frozen,
+    Active,
+}
+
+impl Default for LockerStatus {
+    fn default() -> Self {
+        LockerStatus::Active
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct Locked {
+    pub seq_num: SeqNum,
+    pub token_id: AccountId,
+    pub appchain_id: AppchainId,
+    pub receiver_id: String,
+    pub amount: U128,
+    pub block_height: BlockHeight,
 }

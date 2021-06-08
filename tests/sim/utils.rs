@@ -30,6 +30,18 @@ pub fn register_user(user: &near_sdk_sim::UserAccount) {
         near_sdk::env::storage_byte_cost() * 125, // attached deposit
     )
     .assert_success();
+    user.call(
+        B_TOKEN_ID.to_string(),
+        "storage_deposit",
+        &json!({
+            "account_id": user.valid_account_id()
+        })
+        .to_string()
+        .into_bytes(),
+        near_sdk_sim::DEFAULT_GAS / 2,
+        near_sdk::env::storage_byte_cost() * 125, // attached deposit
+    )
+    .assert_success();
 }
 
 pub fn init(
