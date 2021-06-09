@@ -94,7 +94,7 @@ near call $OCT_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONT
 near view $RELAY_CONTRACT_ID get_validators '{"appchain_id": "testchain"}'
 
 # Remove appchain
-near call $RELAY_CONTRACT_ID remove_appchain '{"appchain_id": "testchain"}' --accountId $RELAY_CONTRACT_ID
+near call $RELAY_CONTRACT_ID remove_appchain '{"appchain_id": "testchain"}' --accountId $RELAY_CONTRACT_ID --gas 300000000000000
 
 # Update appchain
 near call $RELAY_CONTRACT_ID update_appchain '{"appchain_id": "testchain", "website_url": "website_url", "github_address": "github_address", "github_release": "github_release", "commit_id": "commit_id", "chain_spec_url": "chain_spec_url", "chain_spec_hash": "chain_spec_hash", "chain_spec_raw_url": "chain_spec_raw_url", "chain_spec_raw_hash": "chain_spec_raw_hash"}' --accountId $SIGNER

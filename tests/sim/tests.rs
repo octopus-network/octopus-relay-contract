@@ -100,19 +100,7 @@ fn simulate_list_appchain() {
 
     let appchain = appchain_option.unwrap();
     assert_eq!(appchain.id, "testchain");
-    assert_eq!(appchain.founder_id, root.account_id());
-    assert_eq!(appchain.chain_spec_url, String::from("chain_spec_url"));
-    assert_eq!(appchain.chain_spec_hash, String::from("chain_spec_hash"));
-    assert_eq!(
-        appchain.chain_spec_raw_url,
-        String::from("chain_spec_raw_url")
-    );
-    assert_eq!(
-        appchain.chain_spec_raw_hash,
-        String::from("chain_spec_raw_hash")
-    );
     assert_eq!(appchain.bond_tokens, U128::from(transfer_amount));
-    assert_eq!(appchain.validators.len(), 0);
     assert_eq!(appchain.status, AppchainStatus::Frozen);
 }
 
@@ -168,7 +156,18 @@ fn simulate_activate_appchain() {
         )
         .unwrap_json();
 
-    assert_eq!(appchain_option.unwrap().status, AppchainStatus::Active);
+    let appchain = appchain_option.unwrap();
+    assert_eq!(appchain.status, AppchainStatus::Active);
+    assert_eq!(appchain.chain_spec_url, String::from("chain_spec_url"));
+    assert_eq!(appchain.chain_spec_hash, String::from("chain_spec_hash"));
+    assert_eq!(
+        appchain.chain_spec_raw_url,
+        String::from("chain_spec_raw_url")
+    );
+    assert_eq!(
+        appchain.chain_spec_raw_hash,
+        String::from("chain_spec_raw_hash")
+    );
 }
 
 #[test]

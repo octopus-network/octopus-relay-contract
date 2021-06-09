@@ -63,7 +63,7 @@ pub struct OctopusRelay {
     pub appchain_data_staked_balance: LookupMap<AppchainId, Balance>,
 
     pub appchain_data_validator_sets_len: LookupMap<AppchainId, SeqNum>,
-    pub appchain_data_validator_set: UnorderedMap<(AppchainId, SeqNum), ValidatorSet>,
+    pub appchain_data_validator_set: LookupMap<(AppchainId, SeqNum), ValidatorSet>,
 
     // data for Validator
     pub validator_data_account_id: LookupMap<(AppchainId, ValidatorId), AccountId>,
@@ -103,7 +103,11 @@ pub trait ExtOctopusRelay {
         appchain_id: AppchainId,
         boot_nodes: String,
         rpc_endpoint: String,
-    );
+        chain_spec_url: String,
+        chain_spec_hash: String,
+        chain_spec_raw_url: String,
+        chain_spec_raw_hash: String,
+    ) -> Option<AppchainStatus>;
     fn resolve_remove_appchain(&mut self, index: u32, appchain_id: AppchainId);
 }
 
@@ -156,7 +160,7 @@ impl OctopusRelay {
             appchain_data_staked_balance: LookupMap::new(b"sb".to_vec()),
 
             appchain_data_validator_sets_len: LookupMap::new(b"vsl".to_vec()),
-            appchain_data_validator_set: UnorderedMap::new(b"vs".to_vec()),
+            appchain_data_validator_set: LookupMap::new(b"vs".to_vec()),
 
             validator_data_account_id: LookupMap::new(b"ai".to_vec()),
             validator_data_weight: LookupMap::new(b"we".to_vec()),
@@ -373,20 +377,13 @@ impl OctopusRelay {
                 self.appchain_data_block_height.remove(&appchain_id);
                 self.appchain_data_staked_balance.remove(&appchain_id);
                 self.appchain_data_validator_sets_len.remove(&appchain_id);
-                self.appchain_data_validator_set.clear();
+                self.appchain_data_validator_set.remove(&(appchain_id, 0));
             }
             PromiseResult::Failed => {}
         }
     }
 
-    pub fn list_appchain(
-        &mut self,
-        appchain_id: AppchainId,
-        chain_spec_url: String,
-        chain_spec_hash: String,
-        chain_spec_raw_url: String,
-        chain_spec_raw_hash: String,
-    ) {
+    pub fn list_appchain(&mut self, appchain_id: AppchainId) {
         self.assert_owner();
         let candidate_appchain = self
             .get_appchain(appchain_id.clone())
@@ -396,14 +393,6 @@ impl OctopusRelay {
             &AppchainStatus::Auditing,
             "Appchain is not in auditing."
         );
-        self.appchain_data_chain_spec_url
-            .insert(&appchain_id, &chain_spec_url);
-        self.appchain_data_chain_spec_hash
-            .insert(&appchain_id, &chain_spec_hash);
-        self.appchain_data_chain_spec_raw_url
-            .insert(&appchain_id, &chain_spec_raw_url);
-        self.appchain_data_chain_spec_raw_hash
-            .insert(&appchain_id, &chain_spec_raw_hash);
         self.appchain_data_status
             .insert(&appchain_id, &AppchainStatus::Frozen);
     }
@@ -931,6 +920,10 @@ impl OctopusRelay {
         appchain_id: AppchainId,
         boot_nodes: String,
         rpc_endpoint: String,
+        chain_spec_url: String,
+        chain_spec_hash: String,
+        chain_spec_raw_url: String,
+        chain_spec_raw_hash: String,
     ) -> PromiseOrValue<U128> {
         assert_ne!(
             self.appchain_data_status
@@ -974,6 +967,10 @@ impl OctopusRelay {
             appchain_id,
             boot_nodes,
             rpc_endpoint,
+            chain_spec_url,
+            chain_spec_hash,
+            chain_spec_raw_url,
+            chain_spec_raw_hash,
             &env::current_account_id(),
             NO_DEPOSIT,
             env::prepaid_gas() / 2,
@@ -986,6 +983,10 @@ impl OctopusRelay {
         appchain_id: AppchainId,
         boot_nodes: String,
         rpc_endpoint: String,
+        chain_spec_url: String,
+        chain_spec_hash: String,
+        chain_spec_raw_url: String,
+        chain_spec_raw_hash: String,
     ) -> Option<AppchainStatus> {
         // Update state
         match env::promise_result(0) {
@@ -1001,6 +1002,14 @@ impl OctopusRelay {
 
                 // Check to update validator set
                 self.update_validator_set(appchain_id.clone());
+                self.appchain_data_chain_spec_url
+                    .insert(&appchain_id, &chain_spec_url);
+                self.appchain_data_chain_spec_hash
+                    .insert(&appchain_id, &chain_spec_hash);
+                self.appchain_data_chain_spec_raw_url
+                    .insert(&appchain_id, &chain_spec_raw_url);
+                self.appchain_data_chain_spec_raw_hash
+                    .insert(&appchain_id, &chain_spec_raw_hash);
                 self.appchain_data_status.get(&appchain_id)
             }
             PromiseResult::Failed => self.appchain_data_status.get(&appchain_id),
