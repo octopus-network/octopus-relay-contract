@@ -383,18 +383,32 @@ impl OctopusRelay {
         }
     }
 
-    pub fn list_appchain(&mut self, appchain_id: AppchainId) {
+    pub fn pass_appchain(&mut self, appchain_id: AppchainId) {
+        self.assert_owner();
+        let auditing_appchain = self
+            .get_appchain(appchain_id.clone())
+            .expect("Appchain not found");
+        assert_eq!(
+            &auditing_appchain.status,
+            &AppchainStatus::Auditing,
+            "Appchain is not in auditing."
+        );
+        self.appchain_data_status
+            .insert(&appchain_id, &AppchainStatus::InQueue);
+    }
+
+    pub fn appchain_go_staging(&mut self, appchain_id: AppchainId) {
         self.assert_owner();
         let candidate_appchain = self
             .get_appchain(appchain_id.clone())
             .expect("Appchain not found");
         assert_eq!(
             &candidate_appchain.status,
-            &AppchainStatus::Auditing,
-            "Appchain is not in auditing."
+            &AppchainStatus::InQueue,
+            "Appchain is not in queue."
         );
         self.appchain_data_status
-            .insert(&appchain_id, &AppchainStatus::Frozen);
+            .insert(&appchain_id, &AppchainStatus::Staging);
     }
 
     pub fn update_appchain(
@@ -409,12 +423,14 @@ impl OctopusRelay {
         chain_spec_raw_url: String,
         chain_spec_raw_hash: String,
     ) {
-        assert_ne!(
-            self.appchain_data_status
-                .get(&appchain_id)
-                .expect("Appchain not found"),
-            AppchainStatus::Auditing,
-            "Appchain is in auditing."
+        let required_status_vec = vec![AppchainStatus::Booting];
+        let appchain_status = self
+            .appchain_data_status
+            .get(&appchain_id)
+            .expect("Appchain not found");
+        assert!(
+            required_status_vec.iter().any(|s| *s == appchain_status),
+            "Appchain can't be updated at current status."
         );
 
         let account_id = env::signer_account_id();
@@ -440,7 +456,7 @@ impl OctopusRelay {
         self.appchain_data_chain_spec_raw_hash
             .insert(&appchain_id, &chain_spec_raw_hash);
         self.appchain_data_status
-            .insert(&appchain_id, &AppchainStatus::Frozen);
+            .insert(&appchain_id, &AppchainStatus::Staging);
     }
 
     pub fn get_appchains(&self, from_index: u32, limit: u32) -> Vec<Appchain> {
@@ -721,13 +737,19 @@ impl OctopusRelay {
         }
     }
 
+    fn in_staking_period(&mut self, appchain_id: AppchainId) -> bool {
+        let required_status_vec = vec![AppchainStatus::Staging, AppchainStatus::Booting];
+        let appchain_status = self
+            .appchain_data_status
+            .get(&appchain_id)
+            .expect("Appchain not found");
+        required_status_vec.iter().any(|s| *s == appchain_status)
+    }
+
     fn stake(&mut self, appchain_id: AppchainId, id: String, amount: u128) {
-        assert_ne!(
-            self.appchain_data_status
-                .get(&appchain_id)
-                .expect("Appchain not found"),
-            AppchainStatus::Auditing,
-            "Appchain is in auditing."
+        assert!(
+            self.in_staking_period(appchain_id.clone()),
+            "It's not in staking period."
         );
         let account_id = env::signer_account_id();
         // Check amount
@@ -785,14 +807,10 @@ impl OctopusRelay {
     }
 
     fn stake_more(&mut self, appchain_id: AppchainId, amount: u128) {
-        assert_ne!(
-            self.appchain_data_status
-                .get(&appchain_id)
-                .expect("Appchain not found"),
-            AppchainStatus::Auditing,
-            "Appchain is in auditing."
+        assert!(
+            self.in_staking_period(appchain_id.clone()),
+            "Appchain can't be staked in current status."
         );
-
         let account_id = env::signer_account_id();
         // Check amount
         assert!(
@@ -842,14 +860,10 @@ impl OctopusRelay {
 
     #[payable]
     pub fn unstake(&mut self, appchain_id: AppchainId) {
-        assert_ne!(
-            self.appchain_data_status
-                .get(&appchain_id)
-                .expect("Appchain not found"),
-            AppchainStatus::Auditing,
-            "Appchain is in auditing."
+        assert!(
+            self.in_staking_period(appchain_id.clone()),
+            "Appchain can't be staked in current status."
         );
-
         let account_id = env::signer_account_id();
         let validators = self.get_validators(appchain_id.clone()).unwrap();
 
@@ -924,20 +938,14 @@ impl OctopusRelay {
         chain_spec_hash: String,
         chain_spec_raw_url: String,
         chain_spec_raw_hash: String,
-    ) -> PromiseOrValue<U128> {
-        assert_ne!(
+    ) -> PromiseOrValue<Option<AppchainStatus>> {
+        self.assert_owner();
+        assert_eq!(
             self.appchain_data_status
                 .get(&appchain_id)
                 .expect("Appchain not found"),
-            AppchainStatus::Auditing,
-            "Appchain is in auditing."
-        );
-        // Only admin can do this
-        self.assert_owner();
-        // Can only activate a frozen appchain
-        assert!(
-            self.appchain_data_status.get(&appchain_id).unwrap() == AppchainStatus::Frozen,
-            "Appchain status incorrect"
+            AppchainStatus::Staging,
+            "Appchain is not in staging."
         );
         // Check validators
         assert!(
@@ -955,27 +963,39 @@ impl OctopusRelay {
             .unwrap()
             .clone();
         let bond_tokens = self.appchain_data_bond_tokens.get(&appchain_id).unwrap();
-        ext_token::ft_transfer(
-            account_id,
-            (bond_tokens / 10).into(),
-            None,
-            &self.token_contract_id,
-            1,
-            GAS_FOR_FT_TRANSFER_CALL,
-        )
-        .then(ext_self::resolve_activate_appchain(
-            appchain_id,
-            boot_nodes,
-            rpc_endpoint,
-            chain_spec_url,
-            chain_spec_hash,
-            chain_spec_raw_url,
-            chain_spec_raw_hash,
-            &env::current_account_id(),
-            NO_DEPOSIT,
-            env::prepaid_gas() / 2,
-        ))
-        .into()
+        if bond_tokens > 0 {
+            ext_token::ft_transfer(
+                account_id,
+                (bond_tokens / 10).into(),
+                None,
+                &self.token_contract_id,
+                1,
+                GAS_FOR_FT_TRANSFER_CALL,
+            )
+            .then(ext_self::resolve_activate_appchain(
+                appchain_id,
+                boot_nodes,
+                rpc_endpoint,
+                chain_spec_url,
+                chain_spec_hash,
+                chain_spec_raw_url,
+                chain_spec_raw_hash,
+                &env::current_account_id(),
+                NO_DEPOSIT,
+                env::prepaid_gas() / 2,
+            ))
+            .into()
+        } else {
+            PromiseOrValue::Value(self.internal_activate_appchain(
+                appchain_id,
+                boot_nodes,
+                rpc_endpoint,
+                chain_spec_url,
+                chain_spec_hash,
+                chain_spec_raw_url,
+                chain_spec_raw_hash,
+            ))
+        }
     }
 
     pub fn resolve_activate_appchain(
@@ -991,29 +1011,48 @@ impl OctopusRelay {
         // Update state
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
-            PromiseResult::Successful(_) => {
-                self.appchain_data_status
-                    .insert(&appchain_id, &AppchainStatus::Active);
-                self.appchain_data_boot_nodes
-                    .insert(&appchain_id, &boot_nodes);
-                self.appchain_data_rpc_endpoint
-                    .insert(&appchain_id, &rpc_endpoint);
-                self.appchain_data_bond_tokens.insert(&appchain_id, &0);
-
-                // Check to update validator set
-                self.update_validator_set(appchain_id.clone());
-                self.appchain_data_chain_spec_url
-                    .insert(&appchain_id, &chain_spec_url);
-                self.appchain_data_chain_spec_hash
-                    .insert(&appchain_id, &chain_spec_hash);
-                self.appchain_data_chain_spec_raw_url
-                    .insert(&appchain_id, &chain_spec_raw_url);
-                self.appchain_data_chain_spec_raw_hash
-                    .insert(&appchain_id, &chain_spec_raw_hash);
-                self.appchain_data_status.get(&appchain_id)
-            }
+            PromiseResult::Successful(_) => self.internal_activate_appchain(
+                appchain_id,
+                boot_nodes,
+                rpc_endpoint,
+                chain_spec_url,
+                chain_spec_hash,
+                chain_spec_raw_url,
+                chain_spec_raw_hash,
+            ),
             PromiseResult::Failed => self.appchain_data_status.get(&appchain_id),
         }
+    }
+
+    pub fn internal_activate_appchain(
+        &mut self,
+        appchain_id: AppchainId,
+        boot_nodes: String,
+        rpc_endpoint: String,
+        chain_spec_url: String,
+        chain_spec_hash: String,
+        chain_spec_raw_url: String,
+        chain_spec_raw_hash: String,
+    ) -> Option<AppchainStatus> {
+        self.appchain_data_status
+            .insert(&appchain_id, &AppchainStatus::Booting);
+        self.appchain_data_boot_nodes
+            .insert(&appchain_id, &boot_nodes);
+        self.appchain_data_rpc_endpoint
+            .insert(&appchain_id, &rpc_endpoint);
+        self.appchain_data_bond_tokens.insert(&appchain_id, &0);
+
+        // Check to update validator set
+        self.update_validator_set(appchain_id.clone());
+        self.appchain_data_chain_spec_url
+            .insert(&appchain_id, &chain_spec_url);
+        self.appchain_data_chain_spec_hash
+            .insert(&appchain_id, &chain_spec_hash);
+        self.appchain_data_chain_spec_raw_url
+            .insert(&appchain_id, &chain_spec_raw_url);
+        self.appchain_data_chain_spec_raw_hash
+            .insert(&appchain_id, &chain_spec_raw_hash);
+        self.appchain_data_status.get(&appchain_id)
     }
 
     pub fn freeze_appchain(&mut self, appchain_id: AppchainId) {
@@ -1025,13 +1064,13 @@ impl OctopusRelay {
 
         // Check status
         assert!(
-            self.appchain_data_status.get(&appchain_id).unwrap() == AppchainStatus::Active,
+            self.appchain_data_status.get(&appchain_id).unwrap() == AppchainStatus::Booting,
             "Appchain status incorrect"
         );
 
         // Update state
         self.appchain_data_status
-            .insert(&appchain_id, &AppchainStatus::Frozen);
+            .insert(&appchain_id, &AppchainStatus::Staging);
     }
 
     fn update_validator_set(&mut self, appchain_id: AppchainId) -> bool {
@@ -1041,7 +1080,7 @@ impl OctopusRelay {
             .insert(&appchain_id, &env::block_timestamp());
 
         // Check status
-        if self.appchain_data_status.get(&appchain_id).unwrap() != AppchainStatus::Active {
+        if self.appchain_data_status.get(&appchain_id).unwrap() != AppchainStatus::Booting {
             return false;
         }
 
@@ -1056,7 +1095,7 @@ impl OctopusRelay {
                 < self.appchain_minium_validators
             {
                 self.appchain_data_status
-                    .insert(&appchain_id, &AppchainStatus::Frozen);
+                    .insert(&appchain_id, &AppchainStatus::InQueue);
                 self.appchain_data_validator_set.insert(
                     &(appchain_id.clone(), seq_num),
                     &ValidatorSet {

@@ -113,8 +113,8 @@ impl OctopusRelay {
             .appchain_data_status
             .get(&appchain_id)
             .unwrap_or(AppchainStatus::Auditing)
-            == AppchainStatus::Active;
-        assert!(appchain_is_active, "The appchain isn't active");
+            == AppchainStatus::Booting;
+        assert!(appchain_is_active, "The appchain isn't at booting");
 
         let bridge_is_active = self
             .bridge_token_data_status

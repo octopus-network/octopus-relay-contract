@@ -12,8 +12,9 @@ pub enum Vote {
 #[serde(crate = "near_sdk::serde")]
 pub enum AppchainStatus {
     Auditing,
-    Frozen,
-    Active,
+    InQueue,
+    Staging,
+    Booting,
 }
 
 impl Default for AppchainStatus {

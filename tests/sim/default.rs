@@ -50,16 +50,36 @@ pub fn default_register_appchain(
     (outcome, transfer_amount)
 }
 
-pub fn default_list_appchain(
+pub fn default_pass_appchain(
     root: &UserAccount,
     oct: &UserAccount,
     relay: &UserAccount,
 ) -> (ExecutionResult, u128) {
-    register_user(&relay);
     let (_, transfer_amount) = default_register_appchain(&root, &oct, &relay);
     let outcome = relay.call(
         relay.account_id(),
-        "list_appchain",
+        "pass_appchain",
+        &json!({
+            "appchain_id": "testchain",
+        })
+        .to_string()
+        .into_bytes(),
+        DEFAULT_GAS,
+        0,
+    );
+    outcome.assert_success();
+    (outcome, transfer_amount)
+}
+
+pub fn default_appchain_go_staging(
+    root: &UserAccount,
+    oct: &UserAccount,
+    relay: &UserAccount,
+) -> (ExecutionResult, u128) {
+    let (_, transfer_amount) = default_pass_appchain(&root, &oct, &relay);
+    let outcome = relay.call(
+        relay.account_id(),
+        "appchain_go_staging",
         &json!({
             "appchain_id": "testchain",
         })
@@ -162,7 +182,7 @@ pub fn default_register_bridge_token(
     relay: &UserAccount,
     alice: &UserAccount,
 ) -> ExecutionResult {
-    default_list_appchain(&root, &oct, &relay);
+    default_appchain_go_staging(&root, &oct, &relay);
     default_stake(&root, &oct, &relay);
     default_stake(&alice, &oct, &relay);
     default_activate_appchain(&relay);

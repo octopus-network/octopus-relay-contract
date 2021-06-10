@@ -1,7 +1,7 @@
 use crate::default::{
-    default_activate_appchain, default_init, default_list_appchain, default_register_appchain,
-    default_register_bridge_token, default_set_bridge_permitted, default_stake,
-    default_update_appchain, lock_token, to_decimals_amount,
+    default_activate_appchain, default_appchain_go_staging, default_init, default_pass_appchain,
+    default_register_appchain, default_register_bridge_token, default_set_bridge_permitted,
+    default_stake, default_update_appchain, lock_token, to_decimals_amount,
 };
 use near_sdk::json_types::U128;
 use near_sdk::serde_json::json;
@@ -76,9 +76,9 @@ fn simulate_register_appchain() {
 }
 
 #[test]
-fn simulate_list_appchain() {
+fn simulate_pass_appchain() {
     let (root, oct, _, relay, _) = default_init();
-    let (_, transfer_amount) = default_list_appchain(&root, &oct, &relay);
+    let (_, transfer_amount) = default_pass_appchain(&root, &oct, &relay);
 
     let num_appchains: usize = root
         .view(relay.account_id(), "get_num_appchains", b"")
@@ -99,22 +99,40 @@ fn simulate_list_appchain() {
         .unwrap_json();
 
     let appchain = appchain_option.unwrap();
-    assert_eq!(appchain.id, "testchain");
-    assert_eq!(appchain.bond_tokens, U128::from(transfer_amount));
-    assert_eq!(appchain.status, AppchainStatus::Frozen);
+    assert_eq!(appchain.status, AppchainStatus::InQueue);
 }
 
 #[test]
-fn simulate_update_appchain() {
+fn simulate_appchain_go_staging() {
     let (root, oct, _, relay, _) = default_init();
-    default_list_appchain(&root, &oct, &relay);
-    default_update_appchain(&root, &relay);
+    let (_, transfer_amount) = default_appchain_go_staging(&root, &oct, &relay);
+
+    let num_appchains: usize = root
+        .view(relay.account_id(), "get_num_appchains", b"")
+        .unwrap_json();
+
+    assert_eq!(num_appchains, 1);
+
+    let appchain_option: Option<Appchain> = root
+        .view(
+            relay.account_id(),
+            "get_appchain",
+            &json!({
+                "appchain_id": "testchain"
+            })
+            .to_string()
+            .into_bytes(),
+        )
+        .unwrap_json();
+
+    let appchain = appchain_option.unwrap();
+    assert_eq!(appchain.status, AppchainStatus::Staging);
 }
 
 #[test]
 fn simulate_stake() {
     let (root, oct, _, relay, _) = default_init();
-    default_list_appchain(&root, &oct, &relay);
+    default_appchain_go_staging(&root, &oct, &relay);
     let (outcome, transfer_amount) = default_stake(&root, &oct, &relay);
     outcome.assert_success();
     let validators: Vec<Validator> = root
@@ -138,10 +156,9 @@ fn simulate_stake() {
 #[test]
 fn simulate_activate_appchain() {
     let (root, oct, _, relay, alice) = default_init();
-    default_list_appchain(&root, &oct, &relay);
+    default_appchain_go_staging(&root, &oct, &relay);
     default_stake(&root, &oct, &relay);
     default_stake(&alice, &oct, &relay);
-    default_update_appchain(&root, &relay);
     default_activate_appchain(&relay);
 
     let appchain_option: Option<Appchain> = root
@@ -157,7 +174,7 @@ fn simulate_activate_appchain() {
         .unwrap_json();
 
     let appchain = appchain_option.unwrap();
-    assert_eq!(appchain.status, AppchainStatus::Active);
+    assert_eq!(appchain.status, AppchainStatus::Booting);
     assert_eq!(appchain.chain_spec_url, String::from("chain_spec_url"));
     assert_eq!(appchain.chain_spec_hash, String::from("chain_spec_hash"));
     assert_eq!(
@@ -168,6 +185,16 @@ fn simulate_activate_appchain() {
         appchain.chain_spec_raw_hash,
         String::from("chain_spec_raw_hash")
     );
+}
+
+#[test]
+fn simulate_update_appchain() {
+    let (root, oct, _, relay, alice) = default_init();
+    default_appchain_go_staging(&root, &oct, &relay);
+    default_stake(&root, &oct, &relay);
+    default_stake(&alice, &oct, &relay);
+    default_activate_appchain(&relay);
+    default_update_appchain(&root, &relay);
 }
 
 #[test]
