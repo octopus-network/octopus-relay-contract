@@ -75,7 +75,7 @@ near call $OCT_TOKEN_CONTRACT_ID storage_deposit  '{"account_id": "'$RELAY_CONTR
 near call $BRIDGE_TOKEN_CONTRACT_ID storage_deposit  '{"account_id": "'$RELAY_CONTRACT_ID'"}' --accountId $SIGNER --amount 0.1
 
 # Register appchain
-near call $OCT_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "200000000000000000000000000", "msg": "register_appchain,testchain,website_url_string,github_address_string,chain_spec_url,chain_spec_hash"}' --accountId $SIGNER --amount 0.000000000000000000000001
+near call $OCT_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "200000000000000000000000000", "msg": "register_appchain,testchain,website_url_string,github_address_string,github_release,commit_id,email_string"}' --accountId $SIGNER --amount 0.000000000000000000000001
 
 
 # Pass appchain
@@ -103,7 +103,7 @@ near call $RELAY_CONTRACT_ID remove_appchain '{"appchain_id": "testchain"}' --ac
 near call $RELAY_CONTRACT_ID activate_appchain '{"appchain_id": "testchain", "boot_nodes": "[\"/ip4/3.113.45.140/tcp/30333/p2p/12D3KooWAxYKgdmTczLioD1jkzMyaDuV2Q5VHBsJxPr5zEmHr8nY\",   \"/ip4/18.179.183.182/tcp/30333/p2p/12D3KooWSmLVShww4w9PVW17cCAS5C1JnXBU4NbY7FcGGjMyUGiq\",   \"/ip4/54.168.14.201/tcp/30333/p2p/12D3KooWT2umkS7F8GzUTLrfUzVBJPKn6YwCcuv6LBFQ27UPoo2Y\",   \"/ip4/35.74.18.116/tcp/30333/p2p/12D3KooWHNf9JxUZKHoF7rrsmorv86gonXSb2ZU44CbMsnBNFSAJ\", ]", "rpc_endpoint": "wss://easydeal-dev.rpc.testnet.oct.network:9944", "chain_spec_url": "chain_spec_url", "chain_spec_hash": "chain_spec_hash", "chain_spec_raw_url": "chain_spec_raw_url", "chain_spec_raw_hash": "chain_spec_raw_hash"}' --accountId $RELAY_CONTRACT_ID --gas 300000000000000
 
 # Update appchain
-near call $RELAY_CONTRACT_ID update_appchain '{"appchain_id": "testchain", "website_url": "website_url", "github_address": "github_address", "github_release": "github_release", "commit_id": "commit_id", "chain_spec_url": "chain_spec_url", "chain_spec_hash": "chain_spec_hash", "chain_spec_raw_url": "chain_spec_raw_url", "chain_spec_raw_hash": "chain_spec_raw_hash"}' --accountId $SIGNER
+near call $RELAY_CONTRACT_ID update_appchain '{"appchain_id": "testchain", "website_url": "website_url", "github_address": "github_address", "github_release": "github_release", "commit_id": "commit_id", "email": "email"}' --accountId $SIGNER
 
 # Get finalized validator_set
 near view $RELAY_CONTRACT_ID get_validator_set '{"appchain_id": "testchain"}'

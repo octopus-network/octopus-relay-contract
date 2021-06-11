@@ -49,6 +49,7 @@ pub struct OctopusRelay {
     pub appchain_data_github_address: LookupMap<AppchainId, String>,
     pub appchain_data_github_release: LookupMap<AppchainId, String>,
     pub appchain_data_commit_id: LookupMap<AppchainId, String>,
+    pub appchain_data_email: LookupMap<AppchainId, String>,
     pub appchain_data_chain_spec_url: LookupMap<AppchainId, String>,
     pub appchain_data_chain_spec_hash: LookupMap<AppchainId, String>,
     pub appchain_data_chain_spec_raw_url: LookupMap<AppchainId, String>,
@@ -146,6 +147,7 @@ impl OctopusRelay {
             appchain_data_github_address: LookupMap::new(b"ga".to_vec()),
             appchain_data_github_release: LookupMap::new(b"gr".to_vec()),
             appchain_data_commit_id: LookupMap::new(b"gcl".to_vec()),
+            appchain_data_email: LookupMap::new(b"gcl".to_vec()),
             appchain_data_chain_spec_url: LookupMap::new(b"csu".to_vec()),
             appchain_data_chain_spec_hash: LookupMap::new(b"csh".to_vec()),
             appchain_data_chain_spec_raw_url: LookupMap::new(b"csru".to_vec()),
@@ -214,13 +216,14 @@ impl OctopusRelay {
                     &self.token_contract_id,
                     "Only supports the OCT token contract"
                 );
-                assert_eq!(msg_vec.len(), 6, "params length wrong!");
+                assert_eq!(msg_vec.len(), 7, "params length wrong!");
                 self.register_appchain(
                     msg_vec.get(1).unwrap().to_string(),
                     msg_vec.get(2).unwrap().to_string(),
                     msg_vec.get(3).unwrap().to_string(),
                     msg_vec.get(4).unwrap().to_string(),
                     msg_vec.get(5).unwrap().to_string(),
+                    msg_vec.get(6).unwrap().to_string(),
                     amount.into(),
                 );
                 PromiseOrValue::Value(0.into())
@@ -274,6 +277,7 @@ impl OctopusRelay {
         github_address: String,
         github_release: String,
         commit_id: String,
+        email: String,
         bond_tokens: u128,
     ) {
         let founder_id = env::signer_account_id();
@@ -291,6 +295,7 @@ impl OctopusRelay {
             .insert(&appchain_id, &github_release);
         self.appchain_data_commit_id
             .insert(&appchain_id, &commit_id);
+        self.appchain_data_email.insert(&appchain_id, &email);
         self.appchain_data_bond_tokens
             .insert(&appchain_id, &bond_tokens);
         self.appchain_data_status
@@ -364,6 +369,7 @@ impl OctopusRelay {
                 self.appchain_data_github_address.remove(&appchain_id);
                 self.appchain_data_github_release.remove(&appchain_id);
                 self.appchain_data_commit_id.remove(&appchain_id);
+                self.appchain_data_email.remove(&appchain_id);
                 self.appchain_data_chain_spec_url.remove(&appchain_id);
                 self.appchain_data_chain_spec_hash.remove(&appchain_id);
                 self.appchain_data_chain_spec_raw_url.remove(&appchain_id);
@@ -418,10 +424,7 @@ impl OctopusRelay {
         github_address: String,
         github_release: String,
         commit_id: String,
-        chain_spec_url: String,
-        chain_spec_hash: String,
-        chain_spec_raw_url: String,
-        chain_spec_raw_hash: String,
+        email: String,
     ) {
         let required_status_vec = vec![AppchainStatus::Booting];
         let appchain_status = self
@@ -447,14 +450,7 @@ impl OctopusRelay {
             .insert(&appchain_id, &github_release);
         self.appchain_data_commit_id
             .insert(&appchain_id, &commit_id);
-        self.appchain_data_chain_spec_url
-            .insert(&appchain_id, &chain_spec_url);
-        self.appchain_data_chain_spec_hash
-            .insert(&appchain_id, &chain_spec_hash);
-        self.appchain_data_chain_spec_raw_url
-            .insert(&appchain_id, &chain_spec_raw_url);
-        self.appchain_data_chain_spec_raw_hash
-            .insert(&appchain_id, &chain_spec_raw_hash);
+        self.appchain_data_email.insert(&appchain_id, &email);
         self.appchain_data_status
             .insert(&appchain_id, &AppchainStatus::Staging);
     }
@@ -508,6 +504,11 @@ impl OctopusRelay {
                     .clone(),
                 commit_id: self
                     .appchain_data_commit_id
+                    .get(&appchain_id)
+                    .unwrap_or(String::from(""))
+                    .clone(),
+                email: self
+                    .appchain_data_email
                     .get(&appchain_id)
                     .unwrap_or(String::from(""))
                     .clone(),

@@ -81,6 +81,7 @@ pub struct Appchain {
     pub github_address: String,
     pub github_release: String,
     pub commit_id: String,
+    pub email: String,
     pub chain_spec_url: String,
     pub chain_spec_hash: String,
     pub chain_spec_raw_url: String,

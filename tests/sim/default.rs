@@ -39,7 +39,7 @@ pub fn default_register_appchain(
         &json!({
             "receiver_id": relay.valid_account_id(),
             "amount": transfer_amount.to_string(),
-            "msg": "register_appchain,testchain,website_url_string,github_address_string,github_release_string,commit_id",
+            "msg": "register_appchain,testchain,website_url_string,github_address_string,github_release_string,commit_id,email_string",
         })
         .to_string()
         .into_bytes(),
@@ -133,6 +133,7 @@ pub fn default_update_appchain(root: &UserAccount, relay: &UserAccount) -> Execu
             "github_address": String::from("github_address_url"),
             "github_release": String::from("github_release"),
             "commit_id": String::from("commit_id"),
+            "email": String::from("email_string1"),
             "chain_spec_url": chain_spec_url,
             "chain_spec_hash": chain_spec_hash,
             "chain_spec_raw_url": chain_spec_raw_url,
