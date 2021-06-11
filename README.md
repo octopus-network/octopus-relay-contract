@@ -44,7 +44,7 @@ near call $RELAY_CONTRACT_ID new '{"token_contract_id": "'$OCT_TOKEN_CONTRACT_ID
 
 ```bash
 # Set contract Id
-export RELAY_CONTRACT_ID=oct-relay.testnet
+export RELAY_CONTRACT_ID=octopus-relay.testnet
 
 # Set OCT token contract Id
 export OCT_TOKEN_CONTRACT_ID=oct-token.testnet
