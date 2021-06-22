@@ -7,6 +7,8 @@ pub enum Vote {
     No,
 }
 
+pub type HexAddress = [u8; 32];
+
 /// Describes the status of appchains
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
@@ -35,9 +37,8 @@ pub struct Delegation {
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Validator {
-    pub id: String,
+    pub id: HexAddress,
     pub account_id: AccountId,
-    pub weight: u32,
     pub staked_amount: U128,
     pub block_height: BlockHeight,
     pub delegations: Vec<Delegation>,
@@ -46,23 +47,11 @@ pub struct Validator {
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct LiteValidator {
-    pub id: String,
+    pub id: HexAddress,
     pub account_id: AccountId,
-    pub weight: u32,
+    pub weight: U128,
     pub block_height: BlockHeight,
     pub delegations: Vec<Delegation>,
-}
-
-impl Default for LiteValidator {
-    fn default() -> Self {
-        Self {
-            id: String::from(""),
-            account_id: AccountId::from(""),
-            weight: 0 as u32,
-            block_height: 0,
-            delegations: vec![],
-        }
-    }
 }
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
@@ -136,10 +125,29 @@ impl Default for LockerStatus {
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Locked {
-    pub seq_num: SeqNum,
     pub token_id: AccountId,
-    pub appchain_id: AppchainId,
     pub receiver_id: String,
     pub amount: U128,
-    pub block_height: BlockHeight,
+}
+
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub enum Fact {
+    ValidatorSet_(ValidatorSet),
+    Locked_(Locked),
+}
+
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub enum FactType {
+    UPDATE_VALIDATOR,
+    LOCK_TOKEN,
+}
+
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct FactWrapper {
+    pub fact_sequence: SeqNum,
+    pub fact_type: FactType,
+    pub fact: Fact,
 }

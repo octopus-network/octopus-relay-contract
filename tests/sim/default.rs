@@ -3,12 +3,15 @@ use near_sdk::json_types::U128;
 use near_sdk::serde_json::json;
 use near_sdk_sim::{to_yocto, ExecutionResult, UserAccount, DEFAULT_GAS};
 use octopus_relay::types::{
-    Appchain, AppchainStatus, BridgeStatus, BridgeToken, Locked, Validator, ValidatorSet,
+    Appchain, AppchainStatus, BridgeStatus, BridgeToken, Fact, FactWrapper, Validator, ValidatorSet,
 };
 
-const initial_balance_str: &str = "100000";
-const appchain_minium_validators: u32 = 2;
-const minium_staking_amount_str: &str = "100";
+pub const initial_balance_str: &str = "100000";
+pub const appchain_minium_validators: u32 = 2;
+pub const minium_staking_amount_str: &str = "100";
+
+pub const val_id0: &str = "c425bbf59c7bf49e4fcc6547539d84ba8ecd2fb171f5b83cde3571d45d0c8224";
+pub const val_id1: &str = "d447acbfe7761c0cfba8341e616275caca6401637308ee123b77082a40095331";
 
 pub fn default_init() -> (
     UserAccount,
@@ -96,11 +99,12 @@ pub fn default_stake(
     user: &UserAccount,
     oct: &UserAccount,
     relay: &UserAccount,
+    validator_id: &str,
 ) -> (ExecutionResult, u128) {
     register_user(&relay);
     let transfer_amount = to_yocto("200");
     let mut msg = "stake,testchain,".to_owned();
-    msg.push_str(user.valid_account_id().to_string().as_ref());
+    msg.push_str(validator_id.to_string().as_ref());
 
     let outcome = user.call(
         oct.account_id(),
@@ -184,8 +188,8 @@ pub fn default_register_bridge_token(
     alice: &UserAccount,
 ) -> ExecutionResult {
     default_appchain_go_staging(&root, &oct, &relay);
-    default_stake(&root, &oct, &relay);
-    default_stake(&alice, &oct, &relay);
+    default_stake(&root, &oct, &relay, val_id0);
+    default_stake(&alice, &oct, &relay, val_id1);
     default_activate_appchain(&relay);
 
     let outcome = relay.call(
@@ -228,10 +232,10 @@ pub fn default_set_bridge_permitted(
     outcome
 }
 
-pub fn get_locked_events(root: &UserAccount, locker: &UserAccount) -> Vec<Locked> {
+pub fn get_facts(root: &UserAccount, locker: &UserAccount) -> Vec<FactWrapper> {
     root.view(
         locker.account_id(),
-        "get_locked_events",
+        "get_facts",
         &json!({
             "appchain_id": "testchain",
             "start": 0,
@@ -248,7 +252,7 @@ pub fn lock_token(
     root: &UserAccount,
     relay: &UserAccount,
     transfer_amount_str: u128,
-) -> Vec<Locked> {
+) -> Vec<FactWrapper> {
     register_user(&relay);
     let outcome = root.call(
         b_token.account_id(),
@@ -265,5 +269,5 @@ pub fn lock_token(
     );
     outcome.assert_success();
 
-    get_locked_events(&root, &relay)
+    get_facts(&root, &relay)
 }

@@ -78,21 +78,6 @@ impl OctopusRelay {
             .insert(&token_id, &price.into());
     }
 
-    pub fn after_token_unlock(
-        &mut self,
-        token_id: AccountId,
-        appchain_id: AppchainId,
-        amount: U128,
-    ) {
-        let total_locked: Balance = self
-            .token_appchain_total_locked
-            .get(&(token_id.clone(), appchain_id.clone()))
-            .unwrap_or(0);
-        let next_total_locked = total_locked - u128::from(amount);
-        self.token_appchain_total_locked
-            .insert(&(token_id, appchain_id), &(next_total_locked));
-    }
-
     pub fn get_bridge_token(&self, token_id: AccountId) -> Option<BridgeToken> {
         let bridge_token_symbol_option = self.bridge_token_data_symbol.get(&token_id);
         if bridge_token_symbol_option.is_some() {

@@ -10,3 +10,4 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 near-sdk = "3.0.1"
 near-contract-standards = "3.0.1"
+hex = "0.4.2"

@@ -1,18 +1,15 @@
 use crate::default::{
-    default_activate_appchain, default_appchain_go_staging, default_init, default_pass_appchain,
-    default_register_appchain, default_register_bridge_token, default_set_bridge_permitted,
-    default_stake, default_update_appchain, lock_token, to_decimals_amount,
+    appchain_minium_validators, default_activate_appchain, default_appchain_go_staging,
+    default_init, default_pass_appchain, default_register_appchain, default_register_bridge_token,
+    default_set_bridge_permitted, default_stake, default_update_appchain, initial_balance_str,
+    lock_token, minium_staking_amount_str, to_decimals_amount, val_id0, val_id1,
 };
 use near_sdk::json_types::U128;
 use near_sdk::serde_json::json;
 use near_sdk_sim::{to_yocto, ExecutionResult, UserAccount, DEFAULT_GAS};
 use octopus_relay::types::{
-    Appchain, AppchainStatus, BridgeStatus, BridgeToken, Validator, ValidatorSet,
+    Appchain, AppchainStatus, BridgeStatus, BridgeToken, Fact, Validator, ValidatorSet,
 };
-
-const initial_balance_str: &str = "100000";
-const appchain_minium_validators: u32 = 2;
-const minium_staking_amount_str: &str = "100";
 
 #[test]
 fn simulate_total_supply() {
@@ -133,7 +130,7 @@ fn simulate_appchain_go_staging() {
 fn simulate_stake() {
     let (root, oct, _, relay, _) = default_init();
     default_appchain_go_staging(&root, &oct, &relay);
-    let (outcome, transfer_amount) = default_stake(&root, &oct, &relay);
+    let (outcome, transfer_amount) = default_stake(&root, &oct, &relay, val_id0);
     outcome.assert_success();
     let validators: Vec<Validator> = root
         .view(
@@ -146,10 +143,12 @@ fn simulate_stake() {
             .into_bytes(),
         )
         .unwrap_json();
+    // println!("validators{:#?}", validators);
+
     let validator = validators.get(0).unwrap();
-    assert_eq!(validator.id, root.valid_account_id().to_string().as_ref());
+    let validator_id = hex::encode(validator.id);
+    assert_eq!(validator_id, val_id0);
     assert_eq!(validator.account_id, "root");
-    assert_eq!(validator.weight, 200);
     assert_eq!(validator.staked_amount, U128::from(transfer_amount));
 }
 
@@ -157,8 +156,8 @@ fn simulate_stake() {
 fn simulate_activate_appchain() {
     let (root, oct, _, relay, alice) = default_init();
     default_appchain_go_staging(&root, &oct, &relay);
-    default_stake(&root, &oct, &relay);
-    default_stake(&alice, &oct, &relay);
+    default_stake(&root, &oct, &relay, val_id0);
+    default_stake(&alice, &oct, &relay, val_id1);
     default_activate_appchain(&relay);
 
     let appchain_option: Option<Appchain> = root
@@ -191,8 +190,8 @@ fn simulate_activate_appchain() {
 fn simulate_update_appchain() {
     let (root, oct, _, relay, alice) = default_init();
     default_appchain_go_staging(&root, &oct, &relay);
-    default_stake(&root, &oct, &relay);
-    default_stake(&alice, &oct, &relay);
+    default_stake(&root, &oct, &relay, val_id0);
+    default_stake(&alice, &oct, &relay, val_id1);
     default_activate_appchain(&relay);
     default_update_appchain(&root, &relay);
 }
@@ -260,8 +259,15 @@ fn simulate_lock_token() {
 
     let locked0 = &locked_events0[0];
     let locked1 = &locked_events1[1];
-    assert_eq!(locked0.seq_num, 0);
-    assert_eq!(locked1.seq_num, 1);
-    assert_eq!(locked0.amount, U128::from(to_decimals_amount(100, 12)));
-    assert_eq!(locked1.amount, U128::from(to_decimals_amount(160, 12)));
+
+    let fact0 = &locked0.fact;
+    let fact1 = &locked1.fact;
+    match fact0 {
+        Fact::Locked_(fact0) => assert_eq!(fact0.amount, U128::from(to_decimals_amount(100, 12))),
+        _ => (),
+    }
+    match fact1 {
+        Fact::Locked_(fact1) => assert_eq!(fact1.amount, U128::from(to_decimals_amount(160, 12))),
+        _ => (),
+    }
 }

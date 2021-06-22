@@ -37,7 +37,7 @@ export BRIDGE_TOKEN_CONTRACT_ID=bridge_token_account_id
 export SIGNER=your_account_id
 
 # Initialize contract with given council and parameters (this is for testing, where you stil have access key to the contract).
-near call $RELAY_CONTRACT_ID new '{"token_contract_id": "'$OCT_TOKEN_CONTRACT_ID'", "appchain_minium_validators": 2, "minium_staking_amount": "100000000000000000000000000", "bridge_limit_ratio": 3333, "oct_token_price": "2000000" }' --accountId $RELAY_CONTRACT_ID
+near call $RELAY_CONTRACT_ID new '{"token_contract_id": "'$OCT_TOKEN_CONTRACT_ID'", "appchain_minium_validators": 1, "minium_staking_amount": "100000000000000000000000000", "bridge_limit_ratio": 3333, "oct_token_price": "2000000" }' --accountId $RELAY_CONTRACT_ID
 ```
 
 ### Use test contracts
@@ -91,7 +91,7 @@ near view $RELAY_CONTRACT_ID get_appchain '{"appchain_id": "testchain"}'
 near view $RELAY_CONTRACT_ID get_num_appchains ''
 
 # Stake
-near call $OCT_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "200000000000000000000000000", "msg": "stake,testchain,validator_id0"}' --accountId $SIGNER --amount 0.000000000000000000000001
+near call $OCT_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "200000000000000000000000000", "msg": "stake,testchain,c425bbf59c7bf49e4fcc6547539d84ba8ecd2fb171f5b83cde3571d45d0c8224"}' --accountId $SIGNER --amount 0.000000000000000000000001
 
 # View current validators(Not finalized)
 near view $RELAY_CONTRACT_ID get_validators '{"appchain_id": "testchain"}'
@@ -132,6 +132,9 @@ near view $RELAY_CONTRACT_ID get_bridge_allowed_amount '{"appchain_id": "testcha
 # lock token
 near call $BRIDGE_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "100000000000000", "msg": "lock_token,testchain,receiver_id"}' --accountId $SIGNER --amount 0.000000000000000000000001
 
-# get_locked_events
-near view $RELAY_CONTRACT_ID get_locked_events '{"appchain_id": "testchain", "start": 0, "limit": 100}'
+# get_facts
+near view $RELAY_CONTRACT_ID get_facts '{"appchain_id": "testchain", "start": 0, "limit": 100}'
+
+# unlock token
+near call $RELAY_CONTRACT_ID unlock_token '{"appchain_id": "testchain", "token_id": "'$BRIDGE_TOKEN_CONTRACT_ID'", "receiver_id": "'$BRIDGE_TOKEN_CONTRACT_ID'", "amount": "150000000000000"}' --accountId $SIGNER --gas 300000000000000
 ```
