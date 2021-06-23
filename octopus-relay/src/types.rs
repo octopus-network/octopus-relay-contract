@@ -128,7 +128,8 @@ impl Default for LockerStatus {
 pub struct Locked {
     pub seq_num: SeqNum,
     pub token_id: AccountId,
-    pub receiver_id: String,
+    pub sender_id: AccountId,
+    pub receiver: String,
     pub amount: U128,
 }
 
