@@ -31,7 +31,7 @@ const VALIDATOR_SET_CYCLE: u64 = 60000000000;
 pub type AppchainId = String;
 pub type ValidatorId = HexAddress;
 pub type DelegatorId = String;
-pub type SeqNum = u32;
+pub type SeqNum = u64;
 
 // Structs in Rust are similar to other languages, and may include impl keyword as shown below
 // Note: the names of the structs are not important when calling the smart contract, but the function names are

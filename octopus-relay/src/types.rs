@@ -57,7 +57,8 @@ pub struct LiteValidator {
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct ValidatorSet {
-    pub seq_num: u32,
+    pub seq_num: SeqNum,
+    pub set_id: u32,
     pub validators: Vec<LiteValidator>,
 }
 
@@ -125,6 +126,7 @@ impl Default for LockerStatus {
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Locked {
+    pub seq_num: SeqNum,
     pub token_id: AccountId,
     pub receiver_id: String,
     pub amount: U128,
@@ -133,21 +135,6 @@ pub struct Locked {
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub enum Fact {
-    ValidatorSet_(ValidatorSet),
-    Locked_(Locked),
-}
-
-#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
-#[serde(crate = "near_sdk::serde")]
-pub enum FactType {
-    UPDATE_VALIDATOR,
-    LOCK_TOKEN,
-}
-
-#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
-#[serde(crate = "near_sdk::serde")]
-pub struct FactWrapper {
-    pub fact_sequence: SeqNum,
-    pub fact_type: FactType,
-    pub fact: Fact,
+    UpdateValidatorSet(ValidatorSet),
+    LockToken(Locked),
 }
