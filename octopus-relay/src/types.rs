@@ -37,7 +37,7 @@ pub struct Delegation {
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Validator {
-    pub id: HexAddress,
+    pub id: ValidatorId,
     pub account_id: AccountId,
     pub staked_amount: U128,
     pub block_height: BlockHeight,
@@ -47,7 +47,7 @@ pub struct Validator {
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct LiteValidator {
-    pub id: HexAddress,
+    pub id: ValidatorId,
     pub account_id: AccountId,
     pub weight: U128,
     pub block_height: BlockHeight,
@@ -84,6 +84,7 @@ pub struct Appchain {
     pub status: AppchainStatus,
     pub block_height: BlockHeight,
     pub staked_balance: U128,
+    pub subql_url: String,
     pub fact_sets_len: SeqNum,
     pub validator_sets_len: SeqNum,
 }
@@ -110,19 +111,6 @@ pub struct BridgeToken {
     pub status: BridgeStatus,
     pub price: U128,
     pub decimals: u32,
-}
-
-#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug, PartialEq)]
-#[serde(crate = "near_sdk::serde")]
-pub enum LockerStatus {
-    Frozen,
-    Active,
-}
-
-impl Default for LockerStatus {
-    fn default() -> Self {
-        LockerStatus::Active
-    }
 }
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]

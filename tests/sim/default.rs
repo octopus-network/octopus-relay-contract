@@ -7,8 +7,8 @@ use octopus_relay::types::{
 };
 
 pub const initial_balance_str: &str = "100000";
-pub const appchain_minium_validators: u32 = 2;
-pub const minium_staking_amount_str: &str = "100";
+pub const appchain_minimum_validators: u32 = 2;
+pub const minimum_staking_amount_str: &str = "100";
 
 pub const val_id0: &str = "c425bbf59c7bf49e4fcc6547539d84ba8ecd2fb171f5b83cde3571d45d0c8224";
 pub const val_id1: &str = "d447acbfe7761c0cfba8341e616275caca6401637308ee123b77082a40095331";
@@ -22,8 +22,8 @@ pub fn default_init() -> (
 ) {
     let (root, oct, b_token, relay, alice) = init(
         to_yocto(initial_balance_str),
-        appchain_minium_validators,
-        to_yocto(minium_staking_amount_str),
+        appchain_minimum_validators,
+        to_yocto(minimum_staking_amount_str),
     );
 
     (root, oct, b_token, relay, alice)

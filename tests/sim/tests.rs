@@ -1,8 +1,8 @@
 use crate::default::{
-    appchain_minium_validators, default_activate_appchain, default_appchain_go_staging,
+    appchain_minimum_validators, default_activate_appchain, default_appchain_go_staging,
     default_init, default_pass_appchain, default_register_appchain, default_register_bridge_token,
     default_set_bridge_permitted, default_stake, default_update_appchain, initial_balance_str,
-    lock_token, minium_staking_amount_str, to_decimals_amount, val_id0, val_id1,
+    lock_token, minimum_staking_amount_str, to_decimals_amount, val_id0, val_id1,
 };
 use near_sdk::json_types::U128;
 use near_sdk::serde_json::json;
@@ -146,8 +146,7 @@ fn simulate_stake() {
     // println!("validators{:#?}", validators);
 
     let validator = validators.get(0).unwrap();
-    let validator_id = hex::encode(validator.id);
-    assert_eq!(validator_id, val_id0);
+    assert_eq!(validator.id, val_id0);
     assert_eq!(validator.account_id, "root");
     assert_eq!(validator.staked_amount, U128::from(transfer_amount));
 }

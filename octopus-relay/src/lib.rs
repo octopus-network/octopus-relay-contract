@@ -6,7 +6,7 @@ use std::convert::From;
 // To conserve gas, efficient serialization is achieved through Borsh (http://borsh.io/)
 use crate::types::{
     Appchain, AppchainStatus, BridgeStatus, BridgeToken, Delegation, Fact, HexAddress,
-    LiteValidator, Locked, LockerStatus, Validator, ValidatorSet,
+    LiteValidator, Locked, Validator, ValidatorSet,
 };
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedMap, Vector};
@@ -29,7 +29,7 @@ const VALIDATOR_SET_CYCLE: u64 = 60000000000;
 // const VALIDATOR_SET_CYCLE: u64 = 86400000000000;
 
 pub type AppchainId = String;
-pub type ValidatorId = HexAddress;
+pub type ValidatorId = String;
 pub type DelegatorId = String;
 pub type SeqNum = u32;
 
@@ -40,8 +40,8 @@ pub type SeqNum = u32;
 pub struct OctopusRelay {
     pub version: u32,
     pub token_contract_id: AccountId,
-    pub appchain_minium_validators: u32,
-    pub minium_staking_amount: Balance,
+    pub appchain_minimum_validators: u32,
+    pub minimum_staking_amount: Balance,
     pub total_staked_balance: Balance,
     pub appchain_id_list: Vector<AppchainId>,
 
@@ -64,6 +64,7 @@ pub struct OctopusRelay {
     pub appchain_data_status: LookupMap<AppchainId, AppchainStatus>,
     pub appchain_data_block_height: LookupMap<AppchainId, BlockHeight>,
     pub appchain_data_staked_balance: LookupMap<AppchainId, Balance>,
+    pub appchain_data_subql_url: LookupMap<AppchainId, String>,
     // Using lookupmap instead of vectors to clean up historical data
     // in the future without affecting the sequence numbers
     pub appchain_data_fact_sets_len: LookupMap<AppchainId, SeqNum>,
@@ -93,10 +94,6 @@ pub struct OctopusRelay {
 
     pub token_appchain_bridge_permitted: LookupMap<(AccountId, AppchainId), bool>,
     pub token_appchain_total_locked: LookupMap<(AccountId, AppchainId), Balance>,
-
-    status: LockerStatus,
-    // locked_appchain_map: LookupMap<(AppchainId, SeqNum), Locked>,
-    // locked_len_appchain_map: LookupMap<AppchainId, SeqNum>,
 }
 
 #[ext_contract(ext_self)]
@@ -137,8 +134,8 @@ impl OctopusRelay {
     #[init]
     pub fn new(
         token_contract_id: AccountId,
-        appchain_minium_validators: u32,
-        minium_staking_amount: U128,
+        appchain_minimum_validators: u32,
+        minimum_staking_amount: U128,
         bridge_limit_ratio: u16,
         oct_token_price: U128,
     ) -> Self {
@@ -148,8 +145,8 @@ impl OctopusRelay {
             version: 0,
             token_contract_id,
             total_staked_balance: 0,
-            appchain_minium_validators,
-            minium_staking_amount: minium_staking_amount.0,
+            appchain_minimum_validators,
+            minimum_staking_amount: minimum_staking_amount.0,
             appchain_id_list: Vector::new(b"ail".to_vec()),
             appchain_data_founder_id: LookupMap::new(b"afi".to_vec()),
             appchain_data_website_url: LookupMap::new(b"wu".to_vec()),
@@ -169,6 +166,7 @@ impl OctopusRelay {
             appchain_data_status: LookupMap::new(b"st".to_vec()),
             appchain_data_block_height: LookupMap::new(b"abh".to_vec()),
             appchain_data_staked_balance: LookupMap::new(b"sb".to_vec()),
+            appchain_data_subql_url: LookupMap::new(b"su".to_vec()),
 
             appchain_data_fact_sets_len: LookupMap::new(b"fsl".to_vec()),
             appchain_data_fact_set: LookupMap::new(b"fs".to_vec()),
@@ -196,10 +194,6 @@ impl OctopusRelay {
 
             token_appchain_bridge_permitted: LookupMap::new(b"tas".to_vec()),
             token_appchain_total_locked: LookupMap::new(b"tab".to_vec()),
-
-            status: LockerStatus::default(),
-            // locked_appchain_map: LookupMap::new(b"la".to_vec()),
-            // locked_len_appchain_map: LookupMap::new(b"ll".to_vec()),
         }
     }
 
@@ -410,6 +404,7 @@ impl OctopusRelay {
                 self.appchain_data_status.remove(&appchain_id);
                 self.appchain_data_block_height.remove(&appchain_id);
                 self.appchain_data_staked_balance.remove(&appchain_id);
+                self.appchain_data_subql_url.remove(&appchain_id);
                 self.appchain_data_validator_sets_len.remove(&appchain_id);
                 self.appchain_data_validator_set_set_id
                     .remove(&(appchain_id, 0));
@@ -502,8 +497,8 @@ impl OctopusRelay {
         self.total_staked_balance.into()
     }
 
-    pub fn get_minium_staking_amount(&self) -> U128 {
-        self.minium_staking_amount.into()
+    pub fn get_minimum_staking_amount(&self) -> U128 {
+        self.minimum_staking_amount.into()
     }
 
     pub fn get_appchain(&self, appchain_id: AppchainId) -> Option<Appchain> {
@@ -594,6 +589,11 @@ impl OctopusRelay {
                     .get(&appchain_id)
                     .unwrap_or(0)
                     .into(),
+                subql_url: self
+                    .appchain_data_subql_url
+                    .get(&appchain_id)
+                    .unwrap_or(String::from(""))
+                    .into(),
                 fact_sets_len: self
                     .appchain_data_fact_sets_len
                     .get(&appchain_id)
@@ -614,8 +614,8 @@ impl OctopusRelay {
         self.version
     }
 
-    pub fn get_appchain_minium_validators(&self) -> u32 {
-        self.appchain_minium_validators
+    pub fn get_appchain_minimum_validators(&self) -> u32 {
+        self.appchain_minimum_validators
     }
 
     pub fn get_validators(&self, appchain_id: AppchainId) -> Option<Vec<Validator>> {
@@ -800,7 +800,6 @@ impl OctopusRelay {
         // Check to update validator set before all
         self.update_validator_set(appchain_id.clone());
 
-        let validator_id = self.validate_hex_address(id.clone());
         assert!(
             self.in_staking_period(appchain_id.clone()),
             "It's not in staking period."
@@ -808,7 +807,7 @@ impl OctopusRelay {
         let account_id = env::signer_account_id();
         // Check amount
         assert!(
-            amount >= self.minium_staking_amount,
+            amount >= self.minimum_staking_amount,
             "Insufficient staking amount"
         );
 
@@ -821,29 +820,29 @@ impl OctopusRelay {
                 "Your account is already staked on the appchain!"
             );
             assert!(
-                v.id != validator_id,
+                v.id != id,
                 "This validator is already staked on the appchain!"
             );
         }
 
         self.validator_data_account_id
-            .insert(&(appchain_id.clone(), validator_id), &account_id);
+            .insert(&(appchain_id.clone(), id.clone()), &account_id);
         self.validator_data_staked_amount
-            .insert(&(appchain_id.clone(), validator_id), &amount);
+            .insert(&(appchain_id.clone(), id.clone()), &amount);
         self.validator_data_block_height
-            .insert(&(appchain_id.clone(), validator_id), &env::block_index());
+            .insert(&(appchain_id.clone(), id.clone()), &env::block_index());
 
         let mut delegator_vector_key: String = "di_".to_owned();
         delegator_vector_key.push_str(appchain_id.as_str());
         delegator_vector_key.push_str(id.as_str());
 
         self.validator_data_delegator_ids.insert(
-            &(appchain_id.clone(), validator_id),
+            &(appchain_id.clone(), id.clone()),
             &Vector::new(delegator_vector_key.as_bytes().to_vec()),
         );
 
         let mut validator_ids = self.appchain_data_validator_ids.get(&appchain_id).unwrap();
-        validator_ids.push(&validator_id);
+        validator_ids.push(&id);
         self.appchain_data_validator_ids
             .insert(&appchain_id, &validator_ids);
 
@@ -866,7 +865,7 @@ impl OctopusRelay {
         let account_id = env::signer_account_id();
         // Check amount
         assert!(
-            amount >= self.minium_staking_amount,
+            amount >= self.minimum_staking_amount,
             "Insufficient staking amount"
         );
 
@@ -906,7 +905,6 @@ impl OctopusRelay {
     }
 
     pub fn remove_validator(&mut self, appchain_id: AppchainId, validator_id: String) {
-        let validator_id = self.validate_hex_address(validator_id);
         self.assert_owner();
         assert!(
             self.in_staking_period(appchain_id.clone()),
@@ -914,11 +912,11 @@ impl OctopusRelay {
         );
         let account_id = self
             .validator_data_account_id
-            .get(&(appchain_id.clone(), validator_id))
+            .get(&(appchain_id.clone(), validator_id.clone()))
             .expect("This validator not exists");
 
         let validator = self
-            .get_validator(appchain_id.clone(), validator_id)
+            .get_validator(appchain_id.clone(), validator_id.clone())
             .unwrap();
 
         ext_token::ft_transfer(
@@ -1008,7 +1006,7 @@ impl OctopusRelay {
         )
         .then(ext_self::resolve_remove_validator(
             appchain_id,
-            validator.id,
+            validator.id.clone(),
             validator.staked_amount.into(),
             &env::current_account_id(),
             NO_DEPOSIT,
@@ -1040,7 +1038,7 @@ impl OctopusRelay {
                 .get(&appchain_id)
                 .unwrap()
                 .len() as u32
-                >= self.appchain_minium_validators,
+                >= self.appchain_minimum_validators,
             "Insufficient number of appchain validators"
         );
 
@@ -1083,6 +1081,12 @@ impl OctopusRelay {
                 chain_spec_raw_hash,
             ))
         }
+    }
+
+    pub fn update_subql_url(&mut self, appchain_id: AppchainId, subql_url: String) {
+        self.assert_owner();
+        self.appchain_data_subql_url
+            .insert(&appchain_id, &subql_url);
     }
 
     pub fn resolve_activate_appchain(
@@ -1182,7 +1186,7 @@ impl OctopusRelay {
                 .get(&appchain_id)
                 .unwrap()
                 .len() as u32)
-                < self.appchain_minium_validators
+                < self.appchain_minimum_validators
             {
                 self.appchain_data_status
                     .insert(&appchain_id, &AppchainStatus::InQueue);

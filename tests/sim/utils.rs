@@ -46,8 +46,8 @@ pub fn register_user(user: &near_sdk_sim::UserAccount) {
 
 pub fn init(
     initial_balance: u128,
-    appchain_minium_validators: u32,
-    minium_staking_amount: u128,
+    appchain_minimum_validators: u32,
+    minimum_staking_amount: u128,
 ) -> (
     UserAccount,
     UserAccount,
@@ -114,8 +114,8 @@ pub fn init(
             "new",
             &json!({
                 "token_contract_id": oct.valid_account_id(),
-                "appchain_minium_validators": appchain_minium_validators,
-                "minium_staking_amount": U128::from(minium_staking_amount),
+                "appchain_minimum_validators": appchain_minimum_validators,
+                "minimum_staking_amount": U128::from(minimum_staking_amount),
                 "bridge_limit_ratio": 3333,
                 "oct_token_price": U128::from(2000000)
             })

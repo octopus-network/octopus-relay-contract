@@ -37,7 +37,7 @@ export BRIDGE_TOKEN_CONTRACT_ID=bridge_token_account_id
 export SIGNER=your_account_id
 
 # Initialize contract with given council and parameters (this is for testing, where you stil have access key to the contract).
-near call $RELAY_CONTRACT_ID new '{"token_contract_id": "'$OCT_TOKEN_CONTRACT_ID'", "appchain_minium_validators": 2, "minium_staking_amount": "100000000000000000000000000", "bridge_limit_ratio": 3333, "oct_token_price": "2000000" }' --accountId $RELAY_CONTRACT_ID
+near call $RELAY_CONTRACT_ID new '{"token_contract_id": "'$OCT_TOKEN_CONTRACT_ID'", "appchain_minimum_validators": 2, "minimum_staking_amount": "100000000000000000000000000", "bridge_limit_ratio": 3333, "oct_token_price": "2000000" }' --accountId $RELAY_CONTRACT_ID
 ```
 
 ### Use test contracts
@@ -104,6 +104,9 @@ near call $RELAY_CONTRACT_ID activate_appchain '{"appchain_id": "testchain", "bo
 
 # Update appchain
 near call $RELAY_CONTRACT_ID update_appchain '{"appchain_id": "testchain", "website_url": "website_url", "github_address": "github_address", "github_release": "github_release", "commit_id": "commit_id", "email": "email"}' --accountId $SIGNER
+
+# Update subql_url
+near call $RELAY_CONTRACT_ID update_subql_url '{"appchain_id": "testchain", "subql_url": "subql_url"}' --accountId $RELAY_CONTRACT_ID
 
 # Get finalized validator_set
 near view $RELAY_CONTRACT_ID get_validator_set '{"appchain_id": "testchain"}'
