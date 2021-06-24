@@ -27,7 +27,7 @@ impl Default for AppchainStatus {
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
-pub struct Delegation {
+pub struct Delegator {
     pub id: DelegatorId,
     pub account_id: AccountId,
     pub amount: U128,
@@ -41,7 +41,7 @@ pub struct Validator {
     pub account_id: AccountId,
     pub staked_amount: U128,
     pub block_height: BlockHeight,
-    pub delegations: Vec<Delegation>,
+    pub Delegators: Vec<Delegator>,
 }
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
@@ -51,7 +51,7 @@ pub struct LiteValidator {
     pub account_id: AccountId,
     pub weight: U128,
     pub block_height: BlockHeight,
-    pub delegations: Vec<Delegation>,
+    pub Delegators: Vec<Delegator>,
 }
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]

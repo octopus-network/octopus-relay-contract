@@ -5,7 +5,7 @@ use std::convert::From;
 
 // To conserve gas, efficient serialization is achieved through Borsh (http://borsh.io/)
 use crate::types::{
-    Appchain, AppchainStatus, BridgeStatus, BridgeToken, Delegation, Fact, HexAddress,
+    Appchain, AppchainStatus, BridgeStatus, BridgeToken, Delegator, Fact, HexAddress,
     LiteValidator, Locked, Validator, ValidatorSet,
 };
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
@@ -78,7 +78,7 @@ pub struct OctopusRelay {
     pub validator_data_block_height: LookupMap<(AppchainId, ValidatorId), BlockHeight>,
     pub validator_data_delegator_ids: LookupMap<(AppchainId, ValidatorId), Vector<AccountId>>,
 
-    // data for Delegation
+    // data for Delegator
     pub delegator_data_amount: LookupMap<(AppchainId, ValidatorId, DelegatorId), Balance>,
     pub delegator_data_account_id: LookupMap<(AppchainId, ValidatorId, DelegatorId), AccountId>,
     pub delegator_data_block_height: LookupMap<(AppchainId, ValidatorId, DelegatorId), BlockHeight>,
@@ -647,7 +647,7 @@ impl OctopusRelay {
                     account_id: v.account_id.clone(),
                     weight: v.staked_amount,
                     block_height: v.block_height,
-                    delegations: v.delegations.clone(),
+                    Delegators: v.Delegators.clone(),
                 })
                 .collect();
             validators.sort_by(|a, b| u128::from(b.weight).cmp(&a.weight.into()));
@@ -683,18 +683,14 @@ impl OctopusRelay {
                     .validator_data_block_height
                     .get(&(appchain_id.clone(), validator_id.clone()))
                     .unwrap(),
-                delegations: self
+                Delegators: self
                     .validator_data_delegator_ids
                     .get(&(appchain_id.clone(), validator_id.clone()))
                     .unwrap()
                     .iter()
                     .map(|d| {
-                        self.get_delegation(
-                            appchain_id.clone(),
-                            validator_id.clone(),
-                            d.to_string(),
-                        )
-                        .unwrap()
+                        self.get_Delegator(appchain_id.clone(), validator_id.clone(), d.to_string())
+                            .unwrap()
                     })
                     .collect(),
             })
@@ -703,19 +699,19 @@ impl OctopusRelay {
         }
     }
 
-    pub fn get_delegation(
+    pub fn get_Delegator(
         &self,
         appchain_id: AppchainId,
         validator_id: ValidatorId,
         delegator_id: DelegatorId,
-    ) -> Option<Delegation> {
+    ) -> Option<Delegator> {
         let account_id_option = self.delegator_data_account_id.get(&(
             appchain_id.clone(),
             validator_id.clone(),
             delegator_id.clone(),
         ));
         if account_id_option.is_some() {
-            Some(Delegation {
+            Some(Delegator {
                 id: delegator_id.clone(),
                 account_id: account_id_option.unwrap().to_string(),
                 amount: self
