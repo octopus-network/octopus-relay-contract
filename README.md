@@ -1,4 +1,4 @@
-# Octopus Realy Smart Contract
+# Octopus Relay Smart Contract
 
 Octopus Relay is part of the Octopus Network.
 
