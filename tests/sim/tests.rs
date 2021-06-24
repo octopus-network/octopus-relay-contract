@@ -257,17 +257,15 @@ fn simulate_lock_token() {
     assert_eq!(locked_events0.len(), 1);
     assert_eq!(locked_events1.len(), 2);
 
-    let locked0 = &locked_events0[0];
-    let locked1 = &locked_events1[1];
+    let fact0 = &locked_events0[0];
+    let fact1 = &locked_events1[1];
 
-    let fact0 = &locked0.fact;
-    let fact1 = &locked1.fact;
     match fact0 {
-        Fact::Locked_(fact0) => assert_eq!(fact0.amount, U128::from(to_decimals_amount(100, 12))),
+        Fact::LockToken(fact0) => assert_eq!(fact0.amount, U128::from(to_decimals_amount(100, 12))),
         _ => (),
     }
     match fact1 {
-        Fact::Locked_(fact1) => assert_eq!(fact1.amount, U128::from(to_decimals_amount(160, 12))),
+        Fact::LockToken(fact1) => assert_eq!(fact1.amount, U128::from(to_decimals_amount(160, 12))),
         _ => (),
     }
 }
