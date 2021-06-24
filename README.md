@@ -136,5 +136,5 @@ near call $BRIDGE_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_C
 near view $RELAY_CONTRACT_ID get_facts '{"appchain_id": "testchain", "start": 0, "limit": 100}'
 
 # unlock token
-near call $RELAY_CONTRACT_ID unlock_token '{"appchain_id": "testchain", "token_id": "'$BRIDGE_TOKEN_CONTRACT_ID'", "receiver_id": "'$BRIDGE_TOKEN_CONTRACT_ID'", "amount": "150000000000000"}' --accountId $SIGNER --gas 300000000000000
+near call $RELAY_CONTRACT_ID unlock_token '{"appchain_id": "testchain", "token_id": "'$BRIDGE_TOKEN_CONTRACT_ID'", "sender": "sender", "receiver_id": "'$BRIDGE_TOKEN_CONTRACT_ID'", "amount": "150000000000000"}' --accountId $SIGNER --gas 300000000000000
 ```
