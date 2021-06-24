@@ -37,7 +37,7 @@ export BRIDGE_TOKEN_CONTRACT_ID=bridge_token_account_id
 export SIGNER=your_account_id
 
 # Initialize contract with given council and parameters (this is for testing, where you stil have access key to the contract).
-near call $RELAY_CONTRACT_ID new '{"token_contract_id": "'$OCT_TOKEN_CONTRACT_ID'", "appchain_minium_validators": 1, "minium_staking_amount": "100000000000000000000000000", "bridge_limit_ratio": 3333, "oct_token_price": "2000000" }' --accountId $RELAY_CONTRACT_ID
+near call $RELAY_CONTRACT_ID new '{"token_contract_id": "'$OCT_TOKEN_CONTRACT_ID'", "appchain_minium_validators": 2, "minium_staking_amount": "100000000000000000000000000", "bridge_limit_ratio": 3333, "oct_token_price": "2000000" }' --accountId $RELAY_CONTRACT_ID
 ```
 
 ### Use test contracts
@@ -111,11 +111,8 @@ near view $RELAY_CONTRACT_ID get_validator_set '{"appchain_id": "testchain"}'
 # Stake more
 near call $OCT_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "200000000000000000000000000", "msg": "stake_more,testchain"}' --accountId $SIGNER --amount 0.000000000000000000000001
 
-# Get finalized validator_set_index
-near view $RELAY_CONTRACT_ID get_curr_validator_set_index '{"appchain_id": "testchain"}'
-
 # Get finalized validator_set by sequence number
-near view $RELAY_CONTRACT_ID get_validator_set_by_seq_num '{"appchain_id": "testchain", "seq_num": 0}'
+near view $RELAY_CONTRACT_ID get_validator_set_by_set_id '{"appchain_id": "testchain", "set_id": 0}'
 
 # Register bridge_token, 1000000 means 1.0000000000 usd
 near call $RELAY_CONTRACT_ID register_bridge_token '{"token_id": "'$BRIDGE_TOKEN_CONTRACT_ID'", "symbol": "TSB", "price": "1000000", "decimals": 12}' --accountId $RELAY_CONTRACT_ID
@@ -130,7 +127,7 @@ near view $RELAY_CONTRACT_ID get_bridge_token '{"token_id": "'$BRIDGE_TOKEN_CONT
 near view $RELAY_CONTRACT_ID get_bridge_allowed_amount '{"appchain_id": "testchain", "token_id": "'$BRIDGE_TOKEN_CONTRACT_ID'"}'
 
 # lock token
-near call $BRIDGE_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "100000000000000", "msg": "lock_token,testchain,receiver_id"}' --accountId $SIGNER --amount 0.000000000000000000000001
+near call $BRIDGE_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "100000000000000", "msg": "lock_token,testchain,sender_id,receiver"}' --accountId $SIGNER --amount 0.000000000000000000000001
 
 # get_facts
 near view $RELAY_CONTRACT_ID get_facts '{"appchain_id": "testchain", "start": 0, "limit": 100}'

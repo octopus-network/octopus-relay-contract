@@ -5,8 +5,8 @@ use std::convert::From;
 
 // To conserve gas, efficient serialization is achieved through Borsh (http://borsh.io/)
 use crate::types::{
-    Appchain, AppchainStatus, BridgeStatus, BridgeToken, Delegation, Fact, FactType, FactWrapper,
-    HexAddress, LiteValidator, Locked, LockerStatus, Validator, ValidatorSet,
+    Appchain, AppchainStatus, BridgeStatus, BridgeToken, Delegation, Fact, HexAddress,
+    LiteValidator, Locked, LockerStatus, Validator, ValidatorSet,
 };
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedMap, Vector};
@@ -31,7 +31,7 @@ const VALIDATOR_SET_CYCLE: u64 = 60000000000;
 pub type AppchainId = String;
 pub type ValidatorId = HexAddress;
 pub type DelegatorId = String;
-pub type SeqNum = u64;
+pub type SeqNum = u32;
 
 // Structs in Rust are similar to other languages, and may include impl keyword as shown below
 // Note: the names of the structs are not important when calling the smart contract, but the function names are
@@ -64,13 +64,12 @@ pub struct OctopusRelay {
     pub appchain_data_status: LookupMap<AppchainId, AppchainStatus>,
     pub appchain_data_block_height: LookupMap<AppchainId, BlockHeight>,
     pub appchain_data_staked_balance: LookupMap<AppchainId, Balance>,
-
     // Using lookupmap instead of vectors to clean up historical data
     // in the future without affecting the sequence numbers
     pub appchain_data_fact_sets_len: LookupMap<AppchainId, SeqNum>,
     pub appchain_data_fact_set: LookupMap<(AppchainId, SeqNum), Fact>,
     pub appchain_data_validator_sets_len: LookupMap<AppchainId, SeqNum>,
-    pub appchain_data_validator_set_seq_num: LookupMap<(AppchainId, SeqNum), SeqNum>,
+    pub appchain_data_validator_set_set_id: LookupMap<(AppchainId, SeqNum), SeqNum>,
 
     // data for Validator
     pub validator_data_account_id: LookupMap<(AppchainId, ValidatorId), AccountId>,
@@ -174,7 +173,7 @@ impl OctopusRelay {
             appchain_data_fact_sets_len: LookupMap::new(b"fsl".to_vec()),
             appchain_data_fact_set: LookupMap::new(b"fs".to_vec()),
             appchain_data_validator_sets_len: LookupMap::new(b"vsl".to_vec()),
-            appchain_data_validator_set_seq_num: LookupMap::new(b"vss".to_vec()),
+            appchain_data_validator_set_set_id: LookupMap::new(b"vss".to_vec()),
 
             validator_data_account_id: LookupMap::new(b"ai".to_vec()),
             validator_data_staked_amount: LookupMap::new(b"sa".to_vec()),
@@ -265,10 +264,11 @@ impl OctopusRelay {
             }
             "lock_token" => {
                 let token_id = env::predecessor_account_id();
-                assert_eq!(msg_vec.len(), 3, "params length wrong!");
+                assert_eq!(msg_vec.len(), 4, "params length wrong!");
                 self.lock_token(
                     msg_vec.get(1).unwrap().to_string(),
                     msg_vec.get(2).unwrap().to_string(),
+                    msg_vec.get(3).unwrap().to_string(),
                     token_id,
                     amount.0,
                 );
@@ -317,6 +317,8 @@ impl OctopusRelay {
         self.appchain_data_email.insert(&appchain_id, &email);
         self.appchain_data_bond_tokens
             .insert(&appchain_id, &bond_tokens);
+        self.appchain_data_validators_timestamp
+            .insert(&appchain_id, &0);
         self.appchain_data_status
             .insert(&appchain_id, &AppchainStatus::Auditing);
 
@@ -409,7 +411,7 @@ impl OctopusRelay {
                 self.appchain_data_block_height.remove(&appchain_id);
                 self.appchain_data_staked_balance.remove(&appchain_id);
                 self.appchain_data_validator_sets_len.remove(&appchain_id);
-                self.appchain_data_validator_set_seq_num
+                self.appchain_data_validator_set_set_id
                     .remove(&(appchain_id, 0));
             }
             PromiseResult::Failed => {}
@@ -592,6 +594,16 @@ impl OctopusRelay {
                     .get(&appchain_id)
                     .unwrap_or(0)
                     .into(),
+                fact_sets_len: self
+                    .appchain_data_fact_sets_len
+                    .get(&appchain_id)
+                    .unwrap_or(0)
+                    .into(),
+                validator_sets_len: self
+                    .appchain_data_validator_sets_len
+                    .get(&appchain_id)
+                    .unwrap_or(0)
+                    .into(),
             })
         } else {
             None
@@ -616,7 +628,7 @@ impl OctopusRelay {
     }
 
     pub fn next_validator_set(&self, appchain_id: AppchainId) -> Option<ValidatorSet> {
-        let seq_num = self.get_curr_validator_set_len(appchain_id.clone());
+        let set_id = self.get_curr_validator_set_len(appchain_id.clone()) + 1;
         let validators_timestamp_option = self.appchain_data_validators_timestamp.get(&appchain_id);
         if !validators_timestamp_option.is_some() {
             return None;
@@ -624,9 +636,10 @@ impl OctopusRelay {
         let validators_timestamp = validators_timestamp_option.unwrap();
         let validators_from_unix = validators_timestamp / VALIDATOR_SET_CYCLE;
         let today_from_unix = env::block_timestamp() / VALIDATOR_SET_CYCLE;
+
         if today_from_unix - validators_from_unix > 0 {
             let mut validators: Vec<LiteValidator> = self
-                .get_validators(appchain_id)
+                .get_validators(appchain_id.clone())
                 .unwrap()
                 .iter()
                 .map(|v| LiteValidator {
@@ -638,8 +651,10 @@ impl OctopusRelay {
                 })
                 .collect();
             validators.sort_by(|a, b| u128::from(b.weight).cmp(&a.weight.into()));
+            let seq_num = self.appchain_data_fact_sets_len.get(&appchain_id).unwrap();
             return Some(ValidatorSet {
                 seq_num,
+                set_id,
                 validators,
             });
         } else {
@@ -722,11 +737,6 @@ impl OctopusRelay {
         }
     }
 
-    // Returns the appchain current validator_set index
-    pub fn get_curr_validator_set_index(&self, appchain_id: AppchainId) -> u32 {
-        self.get_curr_validator_set_len(appchain_id) - 1
-    }
-
     // Returns the appchain current validator_set len
     pub fn get_curr_validator_set_len(&self, appchain_id: AppchainId) -> u32 {
         self.appchain_data_validator_sets_len
@@ -743,30 +753,33 @@ impl OctopusRelay {
             if validator_set_len == 0 {
                 return None;
             }
-            self.get_validator_set_by_seq_num(appchain_id.clone(), validator_set_len - 1)
+            self.get_validator_set_by_set_id(appchain_id.clone(), validator_set_len)
         }
     }
 
-    pub fn get_validator_set_by_seq_num(
+    pub fn get_validator_set_by_set_id(
         &self,
         appchain_id: AppchainId,
-        seq_num: u32,
+        set_id: u32,
     ) -> Option<ValidatorSet> {
-        if seq_num == self.get_curr_validator_set_len(appchain_id.clone()) {
+        if set_id == self.get_curr_validator_set_len(appchain_id.clone()) + 1 {
             return self.next_validator_set(appchain_id);
         } else {
-            let fact_sequence = self
-                .appchain_data_validator_set_seq_num
-                .get(&(appchain_id.clone(), seq_num))
-                .unwrap();
-            let fact_option = self
-                .appchain_data_fact_set
-                .get(&(appchain_id, fact_sequence));
-            if fact_option.is_some() {
-                let fact = fact_option.unwrap();
-                match fact {
-                    Fact::ValidatorSet_(fact) => Some(fact),
-                    _ => None,
+            let seq_num_option = self
+                .appchain_data_validator_set_set_id
+                .get(&(appchain_id.clone(), set_id));
+            if seq_num_option.is_some() {
+                let fact_option = self
+                    .appchain_data_fact_set
+                    .get(&(appchain_id, seq_num_option.unwrap()));
+                if fact_option.is_some() {
+                    let fact = fact_option.unwrap();
+                    match fact {
+                        Fact::UpdateValidatorSet(fact) => Some(fact),
+                        _ => None,
+                    }
+                } else {
+                    None
                 }
             } else {
                 None
@@ -784,6 +797,9 @@ impl OctopusRelay {
     }
 
     fn stake(&mut self, appchain_id: AppchainId, id: String, amount: u128) {
+        // Check to update validator set before all
+        self.update_validator_set(appchain_id.clone());
+
         let validator_id = self.validate_hex_address(id.clone());
         assert!(
             self.in_staking_period(appchain_id.clone()),
@@ -838,12 +854,11 @@ impl OctopusRelay {
         self.appchain_data_staked_balance
             .insert(&appchain_id, &(staked_balance + amount));
         self.total_staked_balance += amount;
-
-        // Check to update validator set
-        self.update_validator_set(appchain_id);
     }
 
     fn stake_more(&mut self, appchain_id: AppchainId, amount: u128) {
+        // Check to update validator set before all
+        self.update_validator_set(appchain_id.clone());
         assert!(
             self.in_staking_period(appchain_id.clone()),
             "Appchain can't be staked in current status."
@@ -888,9 +903,6 @@ impl OctopusRelay {
         self.appchain_data_staked_balance
             .insert(&appchain_id, &(staked_balance + amount));
         self.total_staked_balance += amount;
-
-        // Check to update validator set
-        self.update_validator_set(appchain_id);
     }
 
     pub fn remove_validator(&mut self, appchain_id: AppchainId, validator_id: String) {
@@ -938,6 +950,9 @@ impl OctopusRelay {
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {
+                // Check to update validator set before all
+                self.update_validator_set(appchain_id.clone());
+
                 let mut validator_ids = self.appchain_data_validator_ids.get(&appchain_id).unwrap();
                 let index = validator_ids
                     .to_vec()
@@ -965,8 +980,6 @@ impl OctopusRelay {
                 self.appchain_data_staked_balance
                     .insert(&appchain_id, &(staked_balance - amount));
                 self.total_staked_balance -= amount;
-
-                self.update_validator_set(appchain_id);
             }
             PromiseResult::Failed => {}
         }
@@ -1116,9 +1129,6 @@ impl OctopusRelay {
         self.appchain_data_rpc_endpoint
             .insert(&appchain_id, &rpc_endpoint);
         self.appchain_data_bond_tokens.insert(&appchain_id, &0);
-
-        // Check to update validator set
-        self.update_validator_set(appchain_id.clone());
         self.appchain_data_chain_spec_url
             .insert(&appchain_id, &chain_spec_url);
         self.appchain_data_chain_spec_hash
@@ -1127,6 +1137,9 @@ impl OctopusRelay {
             .insert(&appchain_id, &chain_spec_raw_url);
         self.appchain_data_chain_spec_raw_hash
             .insert(&appchain_id, &chain_spec_raw_hash);
+        // Check to update validator set after appchain activated
+        self.update_validator_set(appchain_id.clone());
+
         self.appchain_data_status.get(&appchain_id)
     }
 
@@ -1150,9 +1163,10 @@ impl OctopusRelay {
 
     fn update_validator_set(&mut self, appchain_id: AppchainId) -> bool {
         let next_validator_set_option = self.next_validator_set(appchain_id.clone());
+        let curr_timestamp = env::block_timestamp();
 
         self.appchain_data_validators_timestamp
-            .insert(&appchain_id, &env::block_timestamp());
+            .insert(&appchain_id, &curr_timestamp);
 
         // Check status
         if self.appchain_data_status.get(&appchain_id).unwrap() != AppchainStatus::Booting {
@@ -1161,8 +1175,8 @@ impl OctopusRelay {
 
         if next_validator_set_option.is_some() {
             let next_validator_set = next_validator_set_option.unwrap();
-            let seq_num = next_validator_set.seq_num;
-            let fact_sequence = self.appchain_data_fact_sets_len.get(&appchain_id).unwrap();
+            let set_id = next_validator_set.set_id;
+            let seq_num = self.appchain_data_fact_sets_len.get(&appchain_id).unwrap();
             if (self
                 .appchain_data_validator_ids
                 .get(&appchain_id)
@@ -1173,24 +1187,25 @@ impl OctopusRelay {
                 self.appchain_data_status
                     .insert(&appchain_id, &AppchainStatus::InQueue);
                 self.appchain_data_fact_set.insert(
-                    &(appchain_id.clone(), fact_sequence),
-                    &Fact::ValidatorSet_(ValidatorSet {
-                        seq_num: seq_num,
+                    &(appchain_id.clone(), seq_num),
+                    &Fact::UpdateValidatorSet(ValidatorSet {
+                        set_id,
+                        seq_num,
                         validators: vec![],
                     }),
                 );
             } else {
                 self.appchain_data_fact_set.insert(
-                    &(appchain_id.clone(), fact_sequence),
-                    &Fact::ValidatorSet_(next_validator_set),
+                    &(appchain_id.clone(), seq_num),
+                    &Fact::UpdateValidatorSet(next_validator_set),
                 );
             }
-            self.appchain_data_validator_set_seq_num
-                .insert(&(appchain_id.clone(), seq_num), &fact_sequence);
+            self.appchain_data_validator_set_set_id
+                .insert(&(appchain_id.clone(), set_id), &seq_num);
             self.appchain_data_fact_sets_len
-                .insert(&appchain_id, &(fact_sequence + 1));
-            self.appchain_data_validator_sets_len
                 .insert(&appchain_id, &(seq_num + 1));
+            self.appchain_data_validator_sets_len
+                .insert(&appchain_id, &set_id);
         }
 
         true
@@ -1226,7 +1241,8 @@ impl OctopusRelay {
     fn lock_token(
         &mut self,
         appchain_id: AppchainId,
-        receiver_id: String,
+        sender_id: AccountId,
+        receiver: String,
         token_id: AccountId,
         amount: u128,
     ) -> U128 {
@@ -1234,6 +1250,10 @@ impl OctopusRelay {
             .get_bridge_allowed_amount(appchain_id.clone(), token_id.clone())
             .into();
         assert!(allowed_amount >= amount.into(), "Bridge not allowed");
+
+        // update_validator_set for checking if there is a validator_set fact
+        // before new lock_token fact be created.
+        self.update_validator_set(appchain_id.clone());
 
         let total_locked: Balance = self
             .token_appchain_total_locked
@@ -1245,17 +1265,19 @@ impl OctopusRelay {
             &(next_total_locked),
         );
 
-        let fact_sequence = self.appchain_data_fact_sets_len.get(&appchain_id).unwrap();
+        let seq_num = self.appchain_data_fact_sets_len.get(&appchain_id).unwrap();
         self.appchain_data_fact_set.insert(
-            &(appchain_id.clone(), fact_sequence),
-            &Fact::Locked_(Locked {
+            &(appchain_id.clone(), seq_num),
+            &Fact::LockToken(Locked {
+                seq_num,
                 token_id,
-                receiver_id,
+                sender_id,
+                receiver,
                 amount: amount.into(),
             }),
         );
         self.appchain_data_fact_sets_len
-            .insert(&appchain_id, &(fact_sequence + 1));
+            .insert(&appchain_id, &(seq_num + 1));
         amount.into()
     }
 
@@ -1306,35 +1328,20 @@ impl OctopusRelay {
         }
     }
 
-    pub fn get_facts(
-        &self,
-        appchain_id: AppchainId,
-        start: SeqNum,
-        limit: SeqNum,
-    ) -> Vec<FactWrapper> {
+    pub fn get_facts(&self, appchain_id: AppchainId, start: SeqNum, limit: SeqNum) -> Vec<Fact> {
         let fact_sets_len = self.appchain_data_fact_sets_len.get(&appchain_id).unwrap();
-        (start..std::cmp::min(start + limit, fact_sets_len))
+        let mut fact_sets: Vec<Fact> = (start..std::cmp::min(start + limit, fact_sets_len))
             .map(|index| {
-                let fact: Fact = self
-                    .appchain_data_fact_set
+                self.appchain_data_fact_set
                     .get(&(appchain_id.clone(), index))
-                    .unwrap();
-                log!("xxxxxxxx {}", index);
-                log!("fact=== {:?}", fact);
-                match fact {
-                    Fact::ValidatorSet_(fact) => FactWrapper {
-                        fact_sequence: index,
-                        fact_type: FactType::UPDATE_VALIDATOR,
-                        fact: Fact::ValidatorSet_(fact),
-                    },
-                    Fact::Locked_(fact) => FactWrapper {
-                        fact_sequence: index,
-                        fact_type: FactType::LOCK_TOKEN,
-                        fact: Fact::Locked_(fact),
-                    },
-                }
+                    .unwrap()
             })
-            .collect()
+            .collect();
+        let next_validator_set_option = self.next_validator_set(appchain_id.clone());
+        if next_validator_set_option.is_some() {
+            fact_sets.push(Fact::UpdateValidatorSet(next_validator_set_option.unwrap()));
+        }
+        fact_sets
     }
 }
 

@@ -84,6 +84,8 @@ pub struct Appchain {
     pub status: AppchainStatus,
     pub block_height: BlockHeight,
     pub staked_balance: U128,
+    pub fact_sets_len: SeqNum,
+    pub validator_sets_len: SeqNum,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug, PartialEq)]

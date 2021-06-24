@@ -3,7 +3,7 @@ use near_sdk::json_types::U128;
 use near_sdk::serde_json::json;
 use near_sdk_sim::{to_yocto, ExecutionResult, UserAccount, DEFAULT_GAS};
 use octopus_relay::types::{
-    Appchain, AppchainStatus, BridgeStatus, BridgeToken, Fact, FactWrapper, Validator, ValidatorSet,
+    Appchain, AppchainStatus, BridgeStatus, BridgeToken, Fact, Validator, ValidatorSet,
 };
 
 pub const initial_balance_str: &str = "100000";
@@ -232,9 +232,9 @@ pub fn default_set_bridge_permitted(
     outcome
 }
 
-pub fn get_facts(root: &UserAccount, locker: &UserAccount) -> Vec<FactWrapper> {
+pub fn get_facts(root: &UserAccount, relay: &UserAccount) -> Vec<Fact> {
     root.view(
-        locker.account_id(),
+        relay.account_id(),
         "get_facts",
         &json!({
             "appchain_id": "testchain",
@@ -252,7 +252,7 @@ pub fn lock_token(
     root: &UserAccount,
     relay: &UserAccount,
     transfer_amount_str: u128,
-) -> Vec<FactWrapper> {
+) -> Vec<Fact> {
     register_user(&relay);
     let outcome = root.call(
         b_token.account_id(),
@@ -260,7 +260,7 @@ pub fn lock_token(
         &json!({
             "receiver_id": relay.valid_account_id(),
             "amount": U128::from(to_decimals_amount(transfer_amount_str, 12)),
-            "msg": "lock_token,testchain,receiver_id",
+            "msg": "lock_token,testchain,sender_id,receiver",
         })
         .to_string()
         .into_bytes(),
