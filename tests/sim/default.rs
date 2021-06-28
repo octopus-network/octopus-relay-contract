@@ -10,8 +10,8 @@ pub const initial_balance_str: &str = "100000";
 pub const appchain_minimum_validators: u32 = 2;
 pub const minimum_staking_amount_str: &str = "100";
 
-pub const val_id0: &str = "c425bbf59c7bf49e4fcc6547539d84ba8ecd2fb171f5b83cde3571d45d0c8224";
-pub const val_id1: &str = "d447acbfe7761c0cfba8341e616275caca6401637308ee123b77082a40095331";
+pub const val_id0: &str = "0xc425bbf59c7bf49e4fcc6547539d84ba8ecd2fb171f5b83cde3571d45d0c8224";
+pub const val_id1: &str = "0xd447acbfe7761c0cfba8341e616275caca6401637308ee123b77082a40095331";
 
 pub fn default_init() -> (
     UserAccount,
@@ -260,7 +260,7 @@ pub fn lock_token(
         &json!({
             "receiver_id": relay.valid_account_id(),
             "amount": U128::from(to_decimals_amount(transfer_amount_str, 12)),
-            "msg": "lock_token,testchain,sender_id,receiver",
+            "msg": "lock_token,testchain,receiver",
         })
         .to_string()
         .into_bytes(),

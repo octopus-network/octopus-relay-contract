@@ -130,7 +130,7 @@ near view $RELAY_CONTRACT_ID get_bridge_token '{"token_id": "'$BRIDGE_TOKEN_CONT
 near view $RELAY_CONTRACT_ID get_bridge_allowed_amount '{"appchain_id": "testchain", "token_id": "'$BRIDGE_TOKEN_CONTRACT_ID'"}'
 
 # lock token
-near call $BRIDGE_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "100000000000000", "msg": "lock_token,testchain,sender_id,receiver"}' --accountId $SIGNER --amount 0.000000000000000000000001
+near call $BRIDGE_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "100000000000000", "msg": "lock_token,testchain,receiver"}' --accountId $SIGNER --amount 0.000000000000000000000001
 
 # get_facts
 near view $RELAY_CONTRACT_ID get_facts '{"appchain_id": "testchain", "start": 0, "limit": 100}'

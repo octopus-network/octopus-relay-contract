@@ -41,7 +41,7 @@ pub struct Validator {
     pub account_id: AccountId,
     pub staked_amount: U128,
     pub block_height: BlockHeight,
-    pub Delegators: Vec<Delegator>,
+    pub delegators: Vec<Delegator>,
 }
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
@@ -51,7 +51,7 @@ pub struct LiteValidator {
     pub account_id: AccountId,
     pub weight: U128,
     pub block_height: BlockHeight,
-    pub Delegators: Vec<Delegator>,
+    pub delegators: Vec<Delegator>,
 }
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
