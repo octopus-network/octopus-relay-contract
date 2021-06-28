@@ -71,7 +71,7 @@ pub struct OctopusRelay {
     pub appchain_data_fact_sets_len: LookupMap<AppchainId, SeqNum>,
     pub appchain_data_fact_set: LookupMap<(AppchainId, SeqNum), Fact>,
     pub appchain_data_validator_sets_len: LookupMap<AppchainId, SeqNum>,
-    pub appchain_data_validator_set_set_id: LookupMap<(AppchainId, SeqNum), SeqNum>,
+    pub appchain_data_validator_sets_fact_id: LookupMap<(AppchainId, SeqNum), SeqNum>,
 
     // data for Validator
     pub validator_data_account_id: LookupMap<(AppchainId, ValidatorId), AccountId>,
@@ -172,7 +172,7 @@ impl OctopusRelay {
             appchain_data_fact_sets_len: LookupMap::new(b"fsl".to_vec()),
             appchain_data_fact_set: LookupMap::new(b"fs".to_vec()),
             appchain_data_validator_sets_len: LookupMap::new(b"vsl".to_vec()),
-            appchain_data_validator_set_set_id: LookupMap::new(b"vss".to_vec()),
+            appchain_data_validator_sets_fact_id: LookupMap::new(b"vss".to_vec()),
 
             validator_data_account_id: LookupMap::new(b"ai".to_vec()),
             validator_data_staked_amount: LookupMap::new(b"sa".to_vec()),
@@ -415,7 +415,7 @@ impl OctopusRelay {
                 self.appchain_data_staked_balance.remove(&appchain_id);
                 self.appchain_data_subql_url.remove(&appchain_id);
                 self.appchain_data_validator_sets_len.remove(&appchain_id);
-                self.appchain_data_validator_set_set_id
+                self.appchain_data_validator_sets_fact_id
                     .remove(&(appchain_id, 0));
             }
             PromiseResult::Failed => {}
@@ -771,7 +771,7 @@ impl OctopusRelay {
             return self.next_validator_set(appchain_id);
         } else {
             let seq_num_option = self
-                .appchain_data_validator_set_set_id
+                .appchain_data_validator_sets_fact_id
                 .get(&(appchain_id.clone(), set_id));
             if seq_num_option.is_some() {
                 let fact_option = self
@@ -1206,7 +1206,7 @@ impl OctopusRelay {
                     &Fact::UpdateValidatorSet(next_validator_set),
                 );
             }
-            self.appchain_data_validator_set_set_id
+            self.appchain_data_validator_sets_fact_id
                 .insert(&(appchain_id.clone(), set_id), &seq_num);
             self.appchain_data_fact_sets_len
                 .insert(&appchain_id, &(seq_num + 1));
