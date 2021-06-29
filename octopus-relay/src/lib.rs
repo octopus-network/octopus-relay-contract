@@ -636,7 +636,11 @@ impl OctopusRelay {
             .collect()
     }
 
-    pub fn next_validator_set(&self, appchain_id: AppchainId) -> Option<ValidatorSet> {
+    pub fn next_validator_set(
+        &self,
+        appchain_id: AppchainId,
+        boot_time: bool,
+    ) -> Option<ValidatorSet> {
         let set_id = self.get_curr_validator_set_len(appchain_id.clone()) + 1;
         let validators_timestamp_option = self.appchain_data_validators_timestamp.get(&appchain_id);
         if !validators_timestamp_option.is_some() {
@@ -646,7 +650,7 @@ impl OctopusRelay {
         let validators_from_unix = validators_timestamp / VALIDATOR_SET_CYCLE;
         let today_from_unix = env::block_timestamp() / VALIDATOR_SET_CYCLE;
 
-        if validators_timestamp != 0 && today_from_unix - validators_from_unix > 0 {
+        if (validators_timestamp != 0 && today_from_unix - validators_from_unix > 0) || boot_time {
             let mut validators: Vec<LiteValidator> = self
                 .get_validators(appchain_id.clone())
                 .unwrap()
@@ -750,7 +754,7 @@ impl OctopusRelay {
     }
 
     pub fn get_validator_set(&self, appchain_id: AppchainId) -> Option<ValidatorSet> {
-        let next_validator_set = self.next_validator_set(appchain_id.clone());
+        let next_validator_set = self.next_validator_set(appchain_id.clone(), false);
         if next_validator_set.is_some() {
             next_validator_set
         } else {
@@ -768,7 +772,7 @@ impl OctopusRelay {
         set_id: u32,
     ) -> Option<ValidatorSet> {
         if set_id == self.get_curr_validator_set_len(appchain_id.clone()) + 1 {
-            return self.next_validator_set(appchain_id);
+            return self.next_validator_set(appchain_id, false);
         } else {
             let seq_num_option = self
                 .appchain_data_validator_sets_fact_id
@@ -1146,7 +1150,7 @@ impl OctopusRelay {
         self.appchain_data_chain_spec_raw_hash
             .insert(&appchain_id, &chain_spec_raw_hash);
         // Check to update validator set after appchain activated
-        self.update_validator_set(appchain_id.clone());
+        self.internal_update_validator_set(appchain_id.clone(), true);
 
         self.appchain_data_status.get(&appchain_id)
     }
@@ -1173,11 +1177,15 @@ impl OctopusRelay {
         if self.appchain_data_status.get(&appchain_id).unwrap() != AppchainStatus::Booting {
             return false;
         }
-        // Get next_validator_set before validators_timestamp be changed.
-        let next_validator_set_option = self.next_validator_set(appchain_id.clone());
-
+        let succeeded = self.internal_update_validator_set(appchain_id.clone(), false);
         self.appchain_data_validators_timestamp
             .insert(&appchain_id, &env::block_timestamp());
+        succeeded
+    }
+
+    fn internal_update_validator_set(&mut self, appchain_id: AppchainId, boot_time: bool) -> bool {
+        // Get next_validator_set before validators_timestamp be changed.
+        let next_validator_set_option = self.next_validator_set(appchain_id.clone(), boot_time);
 
         if next_validator_set_option.is_some() {
             let next_validator_set = next_validator_set_option.unwrap();
@@ -1347,10 +1355,10 @@ impl OctopusRelay {
                 fact
             })
             .collect();
-        let next_validator_set_option = self.next_validator_set(appchain_id.clone());
+        let next_validator_set_option = self.next_validator_set(appchain_id.clone(), false);
         if next_validator_set_option.is_some() {
             let next_validator_set = next_validator_set_option.unwrap();
-            if next_validator_set.seq_num <= end && next_validator_set.seq_num >= start {
+            if next_validator_set.seq_num < end && next_validator_set.seq_num >= start {
                 fact_sets.push(Fact::UpdateValidatorSet(next_validator_set));
             }
         }
