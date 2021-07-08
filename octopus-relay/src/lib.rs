@@ -6,7 +6,7 @@ use std::convert::From;
 // To conserve gas, efficient serialization is achieved through Borsh (http://borsh.io/)
 use crate::types::{
     Appchain, AppchainStatus, BridgeStatus, BridgeToken, Delegator, Fact, LiteValidator, Locked,
-    Validator, ValidatorSet,
+    StorageBalance, Validator, ValidatorSet,
 };
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedMap, Vector};
@@ -14,7 +14,7 @@ use near_sdk::json_types::{ValidAccountId, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     assert_self, env, ext_contract, log, near_bindgen, wee_alloc, AccountId, Balance, BlockHeight,
-    PromiseOrValue, PromiseResult,
+    Promise, PromiseOrValue, PromiseResult,
 };
 
 #[global_allocator]
@@ -22,7 +22,9 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 const NO_DEPOSIT: Balance = 0;
 const GAS_FOR_FT_TRANSFER_CALL: u64 = 35_000_000_000_000;
-const SINGLE_CALL_GAS: u64 = 10_000_000_000_000;
+const SINGLE_CALL_GAS: u64 = 50_000_000_000_000;
+const COMPLEX_CALL_GAS: u64 = 70_000_000_000_000;
+const SIMPLE_CALL_GAS: u64 = 5_000_000_000_000;
 const OCT_DECIMALS_BASE: Balance = 1000_000_000_000_000_000_000_000;
 
 // 20 minutes
@@ -117,11 +119,32 @@ pub trait ExtOctopusRelay {
         amount: U128,
     );
     fn resolve_unlock_token(&mut self, token_id: AccountId, appchain_id: AppchainId, amount: U128);
+    fn resolve_bridge_token_storage_deposit(
+        &mut self,
+        deposit: u128,
+        receiver_id: ValidAccountId,
+        amount: U128,
+        token_id: AccountId,
+    );
+    fn check_bridge_token_storage_deposit(
+        &mut self,
+        deposit: Balance,
+        receiver_id: ValidAccountId,
+        token_id: AccountId,
+        appchain_id: AppchainId,
+        amount: U128,
+    );
 }
 
 #[ext_contract(ext_token)]
 pub trait ExtContract {
     fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
+    fn storage_deposit(
+        &mut self,
+        account_id: Option<ValidAccountId>,
+        registration_only: Option<bool>,
+    ) -> StorageBalance;
+    fn storage_balance_of(&self, account_id: ValidAccountId) -> Option<StorageBalance>;
 }
 
 impl Default for OctopusRelay {
@@ -1295,31 +1318,134 @@ impl OctopusRelay {
         amount.into()
     }
 
+    #[payable]
     pub fn unlock_token(
         &mut self,
         appchain_id: AppchainId,
         token_id: AccountId,
         sender: String,
-        receiver_id: AccountId,
+        receiver_id: ValidAccountId,
         amount: U128,
     ) {
+        let deposit: Balance = env::attached_deposit();
         // prover todo
-        ext_token::ft_transfer(
-            receiver_id.clone(),
-            amount,
-            None,
-            &token_id,
-            1,
-            GAS_FOR_FT_TRANSFER_CALL,
-        )
-        .then(ext_self::resolve_unlock_token(
-            token_id,
-            appchain_id.clone(),
-            amount,
-            &env::current_account_id(),
-            NO_DEPOSIT,
-            env::prepaid_gas() / 2,
-        ));
+        let token_appchain_total_locked = self
+            .token_appchain_total_locked
+            .get(&(token_id.clone(), appchain_id.clone()))
+            .expect("You should lock token before unlock.");
+
+        assert!(
+            deposit >= 1250000000000000000000,
+            "Attached deposit should be at least 0.00125."
+        );
+        assert!(
+            token_appchain_total_locked >= amount.0,
+            "Insufficient locked balance!"
+        );
+
+        ext_token::storage_balance_of(receiver_id.clone(), &token_id, deposit, SIMPLE_CALL_GAS)
+            .then(ext_self::check_bridge_token_storage_deposit(
+                deposit,
+                receiver_id,
+                token_id,
+                appchain_id,
+                amount,
+                &env::current_account_id(),
+                NO_DEPOSIT,
+                env::prepaid_gas() - SINGLE_CALL_GAS,
+            ));
+    }
+
+    pub fn check_bridge_token_storage_deposit(
+        &mut self,
+        deposit: Balance,
+        receiver_id: ValidAccountId,
+        token_id: AccountId,
+        appchain_id: AppchainId,
+        amount: U128,
+    ) {
+        assert_self();
+        match env::promise_result(0) {
+            PromiseResult::NotReady => unreachable!(),
+            PromiseResult::Successful(data) => {
+                if let Ok(storage_balance) =
+                    near_sdk::serde_json::from_slice::<StorageBalance>(&data)
+                {
+                    if storage_balance.total.0 > 0 {
+                        ext_token::ft_transfer(
+                            receiver_id.clone().into(),
+                            amount,
+                            None,
+                            &token_id,
+                            1,
+                            GAS_FOR_FT_TRANSFER_CALL,
+                        )
+                        .then(Promise::new(env::signer_account_id()).transfer(deposit));
+                    }
+                } else {
+                    ext_token::storage_deposit(
+                        Some(receiver_id.clone()),
+                        None,
+                        &token_id,
+                        deposit,
+                        GAS_FOR_FT_TRANSFER_CALL,
+                    )
+                    .then(ext_self::resolve_bridge_token_storage_deposit(
+                        deposit,
+                        receiver_id.clone(),
+                        amount,
+                        token_id.clone(),
+                        &env::current_account_id(),
+                        NO_DEPOSIT,
+                        SINGLE_CALL_GAS,
+                    ))
+                    .then(ext_self::resolve_unlock_token(
+                        token_id,
+                        appchain_id.clone(),
+                        amount,
+                        &env::current_account_id(),
+                        NO_DEPOSIT,
+                        SINGLE_CALL_GAS,
+                    ));
+                }
+            }
+            PromiseResult::Failed => {}
+        }
+    }
+
+    pub fn resolve_bridge_token_storage_deposit(
+        &mut self,
+        deposit: Balance,
+        receiver_id: AccountId,
+        amount: U128,
+        token_id: AccountId,
+    ) -> Promise {
+        assert_self();
+        let signer = env::signer_account_id();
+        match env::promise_result(0) {
+            PromiseResult::NotReady => unreachable!(),
+            PromiseResult::Successful(data) => {
+                if let Ok(storage_balance) =
+                    near_sdk::serde_json::from_slice::<StorageBalance>(&data)
+                {
+                    let refund = deposit - storage_balance.total.0;
+                    if refund > 0 {
+                        Promise::new(signer).transfer(refund);
+                    }
+                    ext_token::ft_transfer(
+                        receiver_id,
+                        amount,
+                        None,
+                        &token_id,
+                        1,
+                        GAS_FOR_FT_TRANSFER_CALL,
+                    )
+                } else {
+                    Promise::new(signer).transfer(deposit)
+                }
+            }
+            PromiseResult::Failed => Promise::new(signer).transfer(deposit),
+        }
     }
 
     pub fn resolve_unlock_token(
@@ -1328,6 +1454,7 @@ impl OctopusRelay {
         appchain_id: AppchainId,
         amount: U128,
     ) {
+        assert_self();
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {

@@ -50,7 +50,7 @@ export RELAY_CONTRACT_ID=octopus-relay.testnet
 export OCT_TOKEN_CONTRACT_ID=oct-token.testnet
 
 # Set bridge token contract Id
-export BRIDGE_TOKEN_CONTRACT_ID=test-stable.testnet
+export BRIDGE_TOKEN_CONTRACT_ID=usdc.testnet
 ```
 
 ### Use dev contract
@@ -63,7 +63,7 @@ export RELAY_CONTRACT_ID=dev-oct-relay.testnet
 export OCT_TOKEN_CONTRACT_ID=oct-token.testnet
 
 # Set bridge token contract Id, it is the same as testnet
-export BRIDGE_TOKEN_CONTRACT_ID=test-stable.testnet
+export BRIDGE_TOKEN_CONTRACT_ID=usdc.testnet
 ```
 
 ### Usage
@@ -118,7 +118,7 @@ near call $OCT_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONT
 near view $RELAY_CONTRACT_ID get_validator_set_by_set_id '{"appchain_id": "testchain", "set_id": 0}'
 
 # Register bridge_token, 1000000 means 1.0000000000 usd
-near call $RELAY_CONTRACT_ID register_bridge_token '{"token_id": "'$BRIDGE_TOKEN_CONTRACT_ID'", "symbol": "TSB", "price": "1000000", "decimals": 12}' --accountId $RELAY_CONTRACT_ID
+near call $RELAY_CONTRACT_ID register_bridge_token '{"token_id": "'$BRIDGE_TOKEN_CONTRACT_ID'", "symbol": "USDC", "price": "1000000", "decimals": 6}' --accountId $RELAY_CONTRACT_ID
 
 # set token bridge permitted for appchain
 near call $RELAY_CONTRACT_ID set_bridge_permitted '{"token_id": "'$BRIDGE_TOKEN_CONTRACT_ID'", "appchain_id": "testchain", "permitted": true}' --accountId $RELAY_CONTRACT_ID
@@ -130,11 +130,11 @@ near view $RELAY_CONTRACT_ID get_bridge_token '{"token_id": "'$BRIDGE_TOKEN_CONT
 near view $RELAY_CONTRACT_ID get_bridge_allowed_amount '{"appchain_id": "testchain", "token_id": "'$BRIDGE_TOKEN_CONTRACT_ID'"}'
 
 # lock token
-near call $BRIDGE_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "100000000000000", "msg": "lock_token,testchain,receiver"}' --accountId $SIGNER --amount 0.000000000000000000000001
+near call $BRIDGE_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "10000000", "msg": "lock_token,testchain,receiver"}' --accountId $SIGNER --amount 0.000000000000000000000001
 
 # get_facts
 near view $RELAY_CONTRACT_ID get_facts '{"appchain_id": "testchain", "start": 0, "limit": 100}'
 
 # unlock token
-near call $RELAY_CONTRACT_ID unlock_token '{"appchain_id": "testchain", "token_id": "'$BRIDGE_TOKEN_CONTRACT_ID'", "sender": "sender", "receiver_id": "'$BRIDGE_TOKEN_CONTRACT_ID'", "amount": "150000000000000"}' --accountId $SIGNER --gas 300000000000000
+near call $RELAY_CONTRACT_ID unlock_token '{"appchain_id": "testchain", "token_id": "'$BRIDGE_TOKEN_CONTRACT_ID'", "sender": "sender", "receiver_id": "test-stable.testnet", "amount": "5000000"}' --accountId $SIGNER --gas 300000000000000 --amount 0.1
 ```

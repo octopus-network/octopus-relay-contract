@@ -129,3 +129,10 @@ pub enum Fact {
     UpdateValidatorSet(ValidatorSet),
     LockToken(Locked),
 }
+
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct StorageBalance {
+    pub total: U128,
+    pub available: U128,
+}
