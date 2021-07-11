@@ -134,6 +134,9 @@ impl OctopusRelay {
             total_used_val += used_val;
         });
 
+        if total_used_val >= limit_val {
+            return 0.into();
+        }
         let rest_val = limit_val - total_used_val;
         let token_decimals = self.bridge_token_data_decimals.get(&token_id).unwrap();
         let token_decimals_base = (10 as u128).pow(token_decimals);

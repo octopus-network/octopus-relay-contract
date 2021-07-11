@@ -1286,7 +1286,10 @@ impl OctopusRelay {
         let allowed_amount: u128 = self
             .get_bridge_allowed_amount(appchain_id.clone(), token_id.clone())
             .into();
-        assert!(allowed_amount >= amount.into(), "Bridge not allowed");
+        assert!(
+            allowed_amount >= amount.into(),
+            "Bridge not allowed: Insufficient staked amount"
+        );
 
         // update_validator_set for checking if there is a validator_set fact
         // before new lock_token fact be created.
