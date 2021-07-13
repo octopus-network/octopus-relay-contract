@@ -19,3 +19,29 @@ octopus-relay = { path = "./octopus-relay" }
 
 [workspace]
 members = ["oct-token", "octopus-relay"]
+
+[patch.crates-io]
+near-sdk = { git = "https://github.com/octopus-network/near-sdk-rs.git", branch = "octopus" }
+near-sdk-sim = { git = "https://github.com/octopus-network/near-sdk-rs.git", branch = "octopus" }
+near-sdk-macros = { git = "https://github.com/octopus-network/near-sdk-rs.git", branch = "octopus" }
+near-metrics = { git = "https://github.com/octopus-network/nearcore.git", branch = "octopus" }
+
+sp-core = { git = "https://github.com/octopus-network/substrate.git", branch = "polkadot-v0.9.5" }
+sp-runtime = { git = "https://github.com/octopus-network/substrate.git", branch = "polkadot-v0.9.5" }
+sp-std = { git = "https://github.com/octopus-network/substrate.git", branch = "polkadot-v0.9.5" }
+sp-consensus-babe = { git = "https://github.com/octopus-network/substrate.git", branch = "polkadot-v0.9.5" }
+
+[patch."https://github.com/paritytech/substrate"]
+sp-api = { git = 'https://github.com/octopus-network/substrate.git', branch = 'polkadot-v0.9.5' }
+sp-application-crypto = { git = 'https://github.com/octopus-network/substrate.git', branch = 'polkadot-v0.9.5' }
+sp-core = { git = 'https://github.com/octopus-network/substrate.git', branch = 'polkadot-v0.9.5' }
+sp-io = { git = 'https://github.com/octopus-network/substrate.git', branch = 'polkadot-v0.9.5' }
+sp-keystore = { git = 'https://github.com/octopus-network/substrate.git', branch = 'polkadot-v0.9.5' }
+sp-runtime = { git = 'https://github.com/octopus-network/substrate.git', branch = 'polkadot-v0.9.5' }
+sp-std = { git = 'https://github.com/octopus-network/substrate.git', branch = 'polkadot-v0.9.5' }
+sp-storage = { git = 'https://github.com/octopus-network/substrate.git', branch = 'polkadot-v0.9.5' }
+sp-externalities = { git = 'https://github.com/octopus-network/substrate.git', branch = 'polkadot-v0.9.5' }
+sp-runtime-interface = { git = 'https://github.com/octopus-network/substrate.git', branch = 'polkadot-v0.9.5' }
+sp-trie = { git = 'https://github.com/octopus-network/substrate.git', branch = 'polkadot-v0.9.5' }
+sp-version = { git = 'https://github.com/octopus-network/substrate.git', branch = 'polkadot-v0.9.5' }
+sp-state-machine = { git = 'https://github.com/octopus-network/substrate.git', branch = 'polkadot-v0.9.5' }

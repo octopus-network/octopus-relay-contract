@@ -1,4 +1,5 @@
 pub mod appchain;
+mod appchain_prover;
 pub mod bridge;
 pub mod bridging;
 pub mod pipeline;
