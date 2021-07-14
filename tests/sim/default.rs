@@ -233,18 +233,21 @@ pub fn default_set_bridge_permitted(
 }
 
 pub fn get_facts(root: &UserAccount, relay: &UserAccount) -> Vec<Fact> {
-    root.view(
-        relay.account_id(),
-        "get_facts",
-        &json!({
-            "appchain_id": "testchain",
-            "start": 0,
-            "limit": 100
-        })
-        .to_string()
-        .into_bytes(),
-    )
-    .unwrap_json()
+    let facts: Vec<Fact> = root
+        .view(
+            relay.account_id(),
+            "get_facts",
+            &json!({
+                "appchain_id": "testchain",
+                "start": 0,
+                "limit": 100
+            })
+            .to_string()
+            .into_bytes(),
+        )
+        .unwrap_json();
+    // remove the fact of initial validator_set
+    facts[1..facts.len()].to_vec()
 }
 
 pub fn lock_token(
