@@ -21,12 +21,13 @@ octopus-relay = { path = "./octopus-relay" }
 members = ["oct-token", "octopus-relay"]
 
 [patch.crates-io]
-near-sdk = { git = "https://github.com/octopus-network/near-sdk-rs.git", branch = "test" }
-near-contract-standards = { git = "https://github.com/octopus-network/near-sdk-rs.git", branch = "test" }
-near-sdk-sim = { git = "https://github.com/octopus-network/near-sdk-rs.git", branch = "test" }
-near-sdk-macros = { git = "https://github.com/octopus-network/near-sdk-rs.git", branch = "test" }
+near-sdk = { git = "https://github.com/octopus-network/near-sdk-rs.git", branch = "test2" }
+near-contract-standards = { git = "https://github.com/octopus-network/near-sdk-rs.git", branch = "test2" }
+near-sdk-sim = { git = "https://github.com/octopus-network/near-sdk-rs.git", branch = "test2" }
+near-sdk-macros = { git = "https://github.com/octopus-network/near-sdk-rs.git", branch = "test2" }
 
 sp-core = { git = "https://github.com/octopus-network/substrate.git", branch = "polkadot-v0.9.5" }
 sp-runtime = { git = "https://github.com/octopus-network/substrate.git", branch = "polkadot-v0.9.5" }
 
 sp-std = { git = "https://github.com/octopus-network/substrate.git", branch = "polkadot-v0.9.5" }
+sp-consensus-babe = { git = "https://github.com/octopus-network/substrate.git", branch = "polkadot-v0.9.5" }
