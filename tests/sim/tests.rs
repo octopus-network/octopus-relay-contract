@@ -250,7 +250,6 @@ fn simulate_lock_token() {
     default_set_bridge_permitted(&b_token, &relay, true);
 
     let locked_events0 = lock_token(&b_token, &root, &relay, 100);
-    println!("locked_events0{:#?}", locked_events0);
     let locked_events1 = lock_token(&b_token, &root, &relay, 160);
 
     assert_eq!(locked_events0.len(), 1);
