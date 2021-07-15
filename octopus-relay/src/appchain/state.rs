@@ -2,13 +2,12 @@ use std::convert::TryInto;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{UnorderedMap, Vector};
-use near_sdk::json_types::{Base64VecU8, U128};
-use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, AccountId, Balance, BlockHeight, Timestamp};
 
 use crate::types::{AppchainStatus, Delegator, LiteValidator, Validator, ValidatorSet};
-use crate::{AppchainId, DelegatorId, SeqNum, ValidatorId, VALIDATOR_SET_CYCLE};
+use crate::{AppchainId, DelegatorId, ValidatorId, VALIDATOR_SET_CYCLE};
 
+/// Appchain delegator of an appchain validator
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct AppchainDelegator {
     /// Id of appchain delegator
@@ -21,6 +20,7 @@ pub struct AppchainDelegator {
     pub block_height: BlockHeight,
 }
 
+/// Appchain validator of an appchain
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct AppchainValidator {
     /// Id of appchain validator
@@ -35,7 +35,7 @@ pub struct AppchainValidator {
     pub delegators: UnorderedMap<DelegatorId, AppchainDelegator>,
 }
 
-/// Appchain state of Octopus Network
+/// Appchain state of an appchain of Octopus Network
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct AppchainState {
     /// Id of the appchain
@@ -125,7 +125,8 @@ impl AppchainValidator {
         }
         Option::None
     }
-    /// Get total staked amount of OCT tokens of the validator
+    /// Get total staked amount of OCT tokens of the validator,
+    /// this function will also count all balances of delegators.
     pub fn get_staked_balance_including_delegators(&self) -> Balance {
         self.amount
             + self
@@ -138,7 +139,7 @@ impl AppchainValidator {
 }
 
 impl AppchainState {
-    /// Return a new instance of AppchainState with the given `appcahin_id` and `AppchainStatus::Auditing` status
+    /// Return a new instance of AppchainState with the given `AppchainId`
     pub fn new(appchain_id: AppchainId) -> Self {
         let mut validators_storage_key = appchain_id.clone();
         validators_storage_key.push_str("_validators");
@@ -197,17 +198,29 @@ impl AppchainState {
         if !self.status.eq(&AppchainStatus::Booting) {
             return Option::None;
         }
-        let period_number = (env::block_timestamp() - self.booting_timestamp) / VALIDATOR_SET_CYCLE;
+        let period_number: u32 = ((env::block_timestamp() - self.booting_timestamp)
+            / VALIDATOR_SET_CYCLE)
+            .try_into()
+            .unwrap_or(0);
         let mut current_validator_sets = self
             .validators_histories
             .iter()
-            .filter(|s| s.seq_num == period_number.try_into().unwrap_or(0))
+            .filter(|s| s.seq_num == period_number)
             .collect::<Vec<_>>();
         if current_validator_sets.len() > 0 {
             current_validator_sets.pop()
         } else {
-            self.validators_histories
+            match self
+                .validators_histories
                 .get(self.validators_histories.len() - 1)
+            {
+                Some(validator_set) => Option::from(ValidatorSet {
+                    seq_num: period_number,
+                    set_id: validator_set.set_id,
+                    validators: validator_set.validators.clone(),
+                }),
+                None => Option::None,
+            }
         }
     }
     /// Boot the appchain
@@ -303,7 +316,7 @@ impl AppchainState {
         let mut current_validator_sets = self
             .validators_histories
             .iter()
-            .filter(|s| s.seq_num == period_number.try_into().unwrap_or(0))
+            .filter(|s| s.seq_num == period_number)
             .collect::<Vec<_>>();
         current_validator_sets.pop()
     }

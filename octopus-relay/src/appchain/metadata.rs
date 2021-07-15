@@ -1,11 +1,10 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{Base64VecU8, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{AccountId, Balance, BlockHeight, env};
 
 use crate::AppchainId;
 
-/// Metadata for appchain of Octopus Network
+/// Metadata of an appchain of Octopus Network
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AppchainMetadata {
@@ -23,7 +22,7 @@ pub struct AppchainMetadata {
     pub commit_id: String,
     /// Contact email of the appchain
     pub email: String,
-    /// 
+    ///
     pub chain_spec_url: String,
     ///
     pub chain_spec_hash: String,
