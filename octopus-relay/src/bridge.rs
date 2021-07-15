@@ -94,12 +94,8 @@ impl OctopusRelay {
     }
 
     pub fn get_bridge_allowed_amount(&self, appchain_id: AppchainId, token_id: AccountId) -> U128 {
-        let appchain_is_active = self
-            .appchain_data_status
-            .get(&appchain_id)
-            .unwrap_or(AppchainStatus::Auditing)
-            == AppchainStatus::Booting;
-        assert!(appchain_is_active, "The appchain isn't at booting");
+        let appchain_state = self.appchain_states.get(&appchain_id).expect("Appchain not found");
+        assert_eq!(appchain_state.status, AppchainStatus::Booting, "The appchain isn't at booting");
 
         let bridge_is_active = self
             .bridge_token_data_status
@@ -112,10 +108,7 @@ impl OctopusRelay {
                 .unwrap_or(false);
         assert!(bridge_is_active, "The bridge is paused or does not exist");
 
-        let staked_balance = self
-            .appchain_data_staked_balance
-            .get(&appchain_id)
-            .unwrap_or(0);
+        let staked_balance = appchain_state.staked_balance;
         let token_price = self.bridge_token_data_price.get(&token_id).unwrap();
         let limit_val = staked_balance / OCT_DECIMALS_BASE
             * self.oct_token_price

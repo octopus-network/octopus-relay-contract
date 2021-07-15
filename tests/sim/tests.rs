@@ -96,7 +96,7 @@ fn simulate_pass_appchain() {
         .unwrap_json();
 
     let appchain = appchain_option.unwrap();
-    assert_eq!(appchain.status, AppchainStatus::InQueue);
+    assert_eq!(appchain.status, AppchainStatus::Voting);
 }
 
 #[test]

@@ -14,7 +14,7 @@ pub type HexAddress = [u8; 32];
 #[serde(crate = "near_sdk::serde")]
 pub enum AppchainStatus {
     Auditing,
-    InQueue,
+    Voting,
     Staging,
     Booting,
 }
