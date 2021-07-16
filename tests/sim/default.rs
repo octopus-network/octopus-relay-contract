@@ -247,7 +247,8 @@ pub fn get_facts(root: &UserAccount, relay: &UserAccount) -> Vec<Fact> {
         )
         .unwrap_json();
     // remove the fact of initial validator_set
-    facts[1..facts.len()].to_vec()
+    // Modified follow the refactor of relay contract
+    facts[0..facts.len()].to_vec()
 }
 
 pub fn lock_token(

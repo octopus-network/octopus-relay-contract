@@ -203,7 +203,7 @@ impl OctopusRelay {
     pub fn get_facts(&self, appchain_id: AppchainId, start: SeqNum, limit: SeqNum) -> Vec<Fact> {
         let fact_sets_len = self.appchain_data_fact_sets_len.get(&appchain_id).unwrap();
         let end = std::cmp::min(start + limit, fact_sets_len);
-        let mut fact_sets: Vec<Fact> = (start..end)
+        let fact_sets: Vec<Fact> = (start..end)
             .map(|index| {
                 let fact = self
                     .appchain_data_fact_set
@@ -212,13 +212,16 @@ impl OctopusRelay {
                 fact
             })
             .collect();
-        let next_validator_set_option = self.next_validator_set(appchain_id.clone(), false);
-        if next_validator_set_option.is_some() {
-            let next_validator_set = next_validator_set_option.unwrap();
-            if next_validator_set.seq_num < end && next_validator_set.seq_num >= start {
-                fact_sets.push(Fact::UpdateValidatorSet(next_validator_set));
-            }
-        }
+        // Commented out the following logic because of the refactoring of relay contract.
+        // Now the fact collection only for facts of cross chain tokens transformation.
+        //
+        // let next_validator_set_option = self.next_validator_set(appchain_id.clone(), false);
+        // if next_validator_set_option.is_some() {
+        //     let next_validator_set = next_validator_set_option.unwrap();
+        //     if next_validator_set.seq_num < end && next_validator_set.seq_num >= start {
+        //         fact_sets.push(Fact::UpdateValidatorSet(next_validator_set));
+        //     }
+        // }
         fact_sets
     }
 }
