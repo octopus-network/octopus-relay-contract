@@ -243,13 +243,14 @@ impl AppchainState {
     }
     /// Stake some OCT tokens to the appchain
     pub fn stake(&mut self, validator_id: &ValidatorId, amount: Balance) -> bool {
+        let account_id = env::signer_account_id();
         match self.status {
             AppchainStatus::Staging => {
-                self.update_validator_amount(validator_id, amount);
+                self.update_validator_amount(validator_id, &account_id, amount);
                 true
             }
             AppchainStatus::Booting => {
-                self.update_validator_amount(validator_id, amount);
+                self.update_validator_amount(validator_id, &account_id, amount);
                 self.validators_nonce += 1;
                 self.create_validators_history();
                 true
@@ -258,7 +259,12 @@ impl AppchainState {
         }
     }
     // Internal logic for updating staking amount of a validator
-    fn update_validator_amount(&mut self, validator_id: &ValidatorId, amount: Balance) {
+    fn update_validator_amount(
+        &mut self,
+        validator_id: &ValidatorId,
+        account_id: &AccountId,
+        amount: Balance,
+    ) {
         match self.validators.get(validator_id) {
             Some(mut validator) => validator.amount += amount,
             None => {
@@ -270,7 +276,7 @@ impl AppchainState {
                     &validator_id,
                     &AppchainValidator {
                         validator_id: validator_id.clone(),
-                        account_id: validator_id.clone(),
+                        account_id: account_id.clone(),
                         amount,
                         block_height: env::block_index(),
                         delegators: UnorderedMap::new(storage_key.into_bytes()),
