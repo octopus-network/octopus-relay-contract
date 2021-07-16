@@ -1,15 +1,7 @@
-use crate::types::{
-    Appchain, AppchainStatus, BridgeStatus, BridgeToken, Delegator, Fact, LiteValidator, Locked,
-    StorageBalance, Validator, ValidatorSet,
-};
 use crate::*;
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LookupMap, UnorderedMap, Vector};
-use near_sdk::json_types::{ValidAccountId, U128};
-use near_sdk::serde::{Deserialize, Serialize};
+use crate::{AppchainId, OctopusRelay, types::AppchainStatus};
 use near_sdk::{
-    assert_self, env, ext_contract, log, near_bindgen, wee_alloc, AccountId, Balance, BlockHeight,
-    Promise, PromiseOrValue, PromiseResult,
+    assert_self, env, near_bindgen, PromiseOrValue, PromiseResult,
 };
 
 pub trait AppchainPipeline {
@@ -116,6 +108,7 @@ impl AppchainPipeline for OctopusRelay {
             "Appchain is not in auditing."
         );
         appchain_state.pass_auditing();
+        self.appchain_states.insert(&appchain_id, &appchain_state);
     }
     //
     fn appchain_go_staging(&mut self, appchain_id: AppchainId) {
@@ -130,6 +123,7 @@ impl AppchainPipeline for OctopusRelay {
             "Appchain is not in queue."
         );
         appchain_state.go_staging();
+        self.appchain_states.insert(&appchain_id, &appchain_state);
     }
     //
     fn activate_appchain(
@@ -235,7 +229,8 @@ impl AppchainPipeline for OctopusRelay {
             .expect("Appchain not found");
         // Check status
         assert_eq!(
-          appchain_state.status, AppchainStatus::Booting,
+            appchain_state.status,
+            AppchainStatus::Booting,
             "Appchain status incorrect"
         );
 
@@ -256,6 +251,7 @@ impl OctopusRelay {
         chain_spec_raw_url: String,
         chain_spec_raw_hash: String,
     ) -> Option<AppchainStatus> {
+        // Update metadata
         let mut appchain_metadata = self
             .appchain_metadatas
             .get(&appchain_id)
@@ -268,11 +264,16 @@ impl OctopusRelay {
             chain_spec_raw_url,
             chain_spec_raw_hash,
         );
+        self.appchain_metadatas
+            .insert(&appchain_id, &appchain_metadata);
+        // Boot the appchain
         let mut appchain_state = self
             .appchain_states
             .get(&appchain_id)
             .expect("Appchain not found");
         appchain_state.boot();
+        self.appchain_states.insert(&appchain_id, &appchain_state);
+        // Return status of the appchain
         Option::from(appchain_state.status)
     }
 }

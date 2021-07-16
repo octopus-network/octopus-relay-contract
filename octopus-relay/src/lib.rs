@@ -344,6 +344,8 @@ impl OctopusRelay {
             commit_id,
             email,
         );
+        self.appchain_metadatas
+            .insert(&appchain_id, &appchain_metadata);
     }
 
     pub fn get_appchains(&self, from_index: u32, limit: u32) -> Vec<Appchain> {
@@ -478,16 +480,10 @@ impl OctopusRelay {
     }
 
     pub fn get_validator_set(&self, appchain_id: AppchainId) -> Option<ValidatorSet> {
-        let next_validator_set = self.next_validator_set(appchain_id.clone(), false);
-        if next_validator_set.is_some() {
-            next_validator_set
-        } else {
-            let validator_set_len = self.get_curr_validator_set_len(appchain_id.clone());
-            if validator_set_len == 0 {
-                return None;
-            }
-            self.get_validator_set_by_set_id(appchain_id.clone(), validator_set_len)
+        if let Some(appchain_state) = self.appchain_states.get(&appchain_id) {
+            return appchain_state.get_current_validator_set();
         }
+        Option::None
     }
 
     pub fn get_validator_set_by_set_id(
@@ -539,11 +535,13 @@ impl OctopusRelay {
             );
         }
 
-        self.appchain_states
+        let mut appchain_state = self
+            .appchain_states
             .get(&appchain_id)
-            .expect("Appchain not found")
-            .stake(&validator_id, amount);
+            .expect("Appchain not found");
+        appchain_state.stake(&validator_id, amount);
         self.total_staked_balance += amount;
+        self.appchain_states.insert(&appchain_id, &appchain_state);
     }
 
     fn stake_more(&mut self, appchain_id: AppchainId, amount: u128) {
@@ -561,8 +559,8 @@ impl OctopusRelay {
             .get_validator(&account_id)
             .expect("You are not staking on the appchain");
         appchain_state.stake(&account_id, amount);
-
         self.total_staked_balance += amount;
+        self.appchain_states.insert(&appchain_id, &appchain_state);
     }
 
     pub fn remove_validator(&mut self, appchain_id: AppchainId, validator_id: String) {
@@ -612,6 +610,7 @@ impl OctopusRelay {
                     .get(&appchain_id)
                     .expect("Appchain not found");
                 self.total_staked_balance -= appchain_state.remove_validator(&validator_id);
+                self.appchain_states.insert(&appchain_id, &appchain_state);
             }
             PromiseResult::Failed => {}
         }
@@ -654,7 +653,9 @@ impl OctopusRelay {
             .appchain_metadatas
             .get(&appchain_id)
             .expect("Appchain not found");
-        appchain_metadata.update_subql(subql_url)
+        appchain_metadata.update_subql(subql_url);
+        self.appchain_metadatas
+            .insert(&appchain_id, &appchain_metadata);
     }
 }
 
