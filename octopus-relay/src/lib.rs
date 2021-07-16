@@ -282,6 +282,7 @@ impl OctopusRelay {
             "Appchain_id is already registered"
         );
         self.appchain_id_list.push(&appchain_id);
+        self.appchain_data_fact_sets_len.insert(&appchain_id, &0);
 
         self.appchain_metadatas.insert(
             &appchain_id,
