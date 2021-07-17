@@ -1,11 +1,14 @@
 use std::convert::TryInto;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{UnorderedMap, Vector};
+use near_sdk::collections::{LazyOption, UnorderedMap, Vector};
 use near_sdk::{env, AccountId, Balance, BlockHeight, Timestamp};
 
+use crate::storage_key::StorageKey;
 use crate::types::{AppchainStatus, Delegator, LiteValidator, Validator, ValidatorSet};
 use crate::{AppchainId, DelegatorId, ValidatorId, VALIDATOR_SET_CYCLE};
+
+const INVALID_DELEGATORS_DATA_OF_VALIDATOR: &'static str = "Invalid delegators data of validator";
 
 /// Appchain delegator of an appchain validator
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -32,7 +35,9 @@ pub struct AppchainValidator {
     /// Block height which the validator started staking
     pub block_height: BlockHeight,
     /// Delegators of the validator
-    pub delegators: UnorderedMap<DelegatorId, AppchainDelegator>,
+    pub delegators: UnorderedMap<DelegatorId, LazyOption<AppchainDelegator>>,
+    ///
+    pub note: String,
 }
 
 /// Appchain state of an appchain of Octopus Network
@@ -41,7 +46,7 @@ pub struct AppchainState {
     /// Id of the appchain
     pub id: AppchainId,
     /// Validators collection of the appchain
-    pub validators: UnorderedMap<ValidatorId, AppchainValidator>,
+    pub validators: UnorderedMap<ValidatorId, LazyOption<AppchainValidator>>,
     /// Nonce of validator set of the appchain.
     ///
     /// This nonce will be increased by 1 for each staking action to the appchain,
@@ -59,7 +64,7 @@ pub struct AppchainState {
     ///
     /// Each remove action for validator will create a new key in this collection,
     /// for users to withdraw their tokens.
-    pub removed_validators: UnorderedMap<ValidatorId, AppchainValidator>,
+    pub removed_validators: UnorderedMap<ValidatorId, LazyOption<AppchainValidator>>,
     /// History records of validator set of appchain
     ///
     /// Each validator staking action after booting and validator removing action to the appchain
@@ -99,7 +104,11 @@ impl AppchainValidator {
                 .delegators
                 .values_as_vector()
                 .iter()
-                .map(|v| v.to_delegator())
+                .map(|d| {
+                    d.get()
+                        .expect(INVALID_DELEGATORS_DATA_OF_VALIDATOR)
+                        .to_delegator()
+                })
                 .collect(),
         }
     }
@@ -114,14 +123,18 @@ impl AppchainValidator {
                 .delegators
                 .values_as_vector()
                 .iter()
-                .map(|v| v.to_delegator())
+                .map(|d| {
+                    d.get()
+                        .expect(INVALID_DELEGATORS_DATA_OF_VALIDATOR)
+                        .to_delegator()
+                })
                 .collect(),
         }
     }
     /// Get delegator by `DelegatorId`
     pub fn get_delegator(&self, delegator_id: &DelegatorId) -> Option<AppchainDelegator> {
-        if let Some(appchain_delegator) = self.delegators.get(delegator_id) {
-            return Option::from(appchain_delegator);
+        if let Some(appchain_delegator_option) = self.delegators.get(delegator_id) {
+            return appchain_delegator_option.get();
         }
         Option::None
     }
@@ -133,43 +146,68 @@ impl AppchainValidator {
                 .delegators
                 .values_as_vector()
                 .iter()
-                .map(|d| d.amount)
+                .filter(|d| d.is_some())
+                .map(|d| d.get().unwrap().amount)
                 .sum::<u128>()
+    }
+    /// Clear extra storage used by the validator
+    ///
+    /// **This function must be called before remove `AppchainValidator` from storage**
+    pub fn clear_extra_storage(&self) {
+        self.delegators.values_as_vector().iter().for_each(|mut d| {
+            d.remove();
+        });
     }
 }
 
 impl AppchainState {
     /// Return a new instance of AppchainState with the given `AppchainId`
-    pub fn new(appchain_id: AppchainId) -> Self {
-        let mut validators_storage_key = appchain_id.clone();
-        validators_storage_key.push_str("_validators");
-        let mut removed_validators_storage_key = appchain_id.clone();
-        removed_validators_storage_key.push_str("_removed_validators");
-        let mut validators_histories_storage_key = appchain_id.clone();
-        validators_histories_storage_key.push_str("_validators_histories");
+    pub fn new(appchain_id: &AppchainId) -> Self {
         Self {
-            id: appchain_id,
-            validators: UnorderedMap::new(validators_storage_key.into_bytes()),
+            id: appchain_id.clone(),
+            validators: UnorderedMap::new(
+                StorageKey::AppchainValidators(appchain_id.clone()).into_bytes(),
+            ),
             validators_nonce: 0,
             currently_valid_validators_nonce: 0,
             validators_timestamp: 0,
             booting_timestamp: 0,
-            removed_validators: UnorderedMap::new(removed_validators_storage_key.into_bytes()),
-            validators_histories: Vector::new(validators_histories_storage_key.into_bytes()),
+            removed_validators: UnorderedMap::new(
+                StorageKey::RemovedAppchainValidators(appchain_id.clone()).into_bytes(),
+            ),
+            validators_histories: Vector::new(
+                StorageKey::AppchainValidatorsHistories(appchain_id.clone()).into_bytes(),
+            ),
             status: AppchainStatus::Auditing,
             staked_balance: 0,
             upvote_balace: 0,
             downvote_balance: 0,
         }
     }
+    /// Clear extra storage used by the appchain
+    ///
+    /// **This function must be called before remove `AppchainState` from storage**
+    pub fn clear_extra_storage(&mut self) {
+        self.validators.values_as_vector().iter().for_each(|mut d| {
+            if let Some(validator) = d.get() {
+                validator.clear_extra_storage();
+            }
+            d.remove();
+        });
+    }
     /// Get all validators of the appchain
     pub fn get_validators(&self) -> Vec<AppchainValidator> {
-        self.validators.values_as_vector().iter().collect()
+        self.validators
+            .values_as_vector()
+            .iter()
+            .filter(|v| v.is_some())
+            .map(|v| v.get().unwrap())
+            .collect()
     }
     /// Get validator by `ValidatorId`
     pub fn get_validator(&self, validator_id: &ValidatorId) -> Option<AppchainValidator> {
-        if let Some(appchain_validator) = self.validators.get(validator_id) {
-            return Option::from(appchain_validator);
+        if let Some(appchain_validator_option) = self.validators.get(validator_id) {
+            return appchain_validator_option.get();
         }
         Option::None
     }
@@ -182,7 +220,8 @@ impl AppchainState {
             .validators
             .values_as_vector()
             .iter()
-            .map(|v| v.to_lite_validator())
+            .filter(|v| v.is_some())
+            .map(|v| v.get().unwrap().to_lite_validator())
             .collect();
         validators.sort_by(|a, b| u128::from(b.weight).cmp(&a.weight.into()));
         let next_period_number =
@@ -232,7 +271,8 @@ impl AppchainState {
             .validators
             .values_as_vector()
             .iter()
-            .map(|v| v.to_lite_validator())
+            .filter(|v| v.is_some())
+            .map(|v| v.get().unwrap().to_lite_validator())
             .collect();
         validators.sort_by(|a, b| u128::from(b.weight).cmp(&a.weight.into()));
         self.validators_histories.push(&ValidatorSet {
@@ -266,21 +306,33 @@ impl AppchainState {
         amount: Balance,
     ) {
         match self.validators.get(validator_id) {
-            Some(mut validator) => validator.amount += amount,
+            Some(mut validator_option) => {
+                if let Some(mut validator) = validator_option.get() {
+                    validator.amount += amount;
+                    validator_option.set(&validator);
+                }
+            }
             None => {
-                let mut storage_key = self.id.clone();
-                storage_key.push_str("_validator_");
-                storage_key.push_str(validator_id.clone().as_str());
-                storage_key.push_str("_delegators");
                 self.validators.insert(
                     &validator_id,
-                    &AppchainValidator {
-                        validator_id: validator_id.clone(),
-                        account_id: account_id.clone(),
-                        amount,
-                        block_height: env::block_index(),
-                        delegators: UnorderedMap::new(storage_key.into_bytes()),
-                    },
+                    &LazyOption::new(
+                        StorageKey::AppchainValidator(self.id.clone(), validator_id.clone())
+                            .into_bytes(),
+                        Some(&AppchainValidator {
+                            validator_id: validator_id.clone(),
+                            account_id: account_id.clone(),
+                            amount,
+                            block_height: env::block_index(),
+                            delegators: UnorderedMap::new(
+                                StorageKey::AppchainDelegators(
+                                    self.id.clone(),
+                                    validator_id.clone(),
+                                )
+                                .into_bytes(),
+                            ),
+                            note: String::new(),
+                        }),
+                    ),
                 );
             }
         }
@@ -298,7 +350,14 @@ impl AppchainState {
         if let Some(validator) = self.get_validator(validator_id) {
             let removed_balance = validator.get_staked_balance_including_delegators();
             self.staked_balance -= removed_balance;
-            self.removed_validators.insert(&validator_id, &validator);
+            self.removed_validators.insert(
+                &validator_id,
+                &LazyOption::new(
+                    StorageKey::AppchainValidator(self.id.clone(), validator_id.clone())
+                        .into_bytes(),
+                    Some(&validator),
+                ),
+            );
             self.validators.remove(&validator_id);
             self.validators_timestamp = env::block_timestamp();
             if self.status.eq(&AppchainStatus::Booting) {

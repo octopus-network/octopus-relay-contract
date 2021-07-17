@@ -94,7 +94,7 @@ impl OctopusRelay {
     }
 
     pub fn get_bridge_allowed_amount(&self, appchain_id: AppchainId, token_id: AccountId) -> U128 {
-        let appchain_state = self.appchain_states.get(&appchain_id).expect("Appchain not found");
+        let appchain_state = self.get_appchain_state(&appchain_id);
         assert_eq!(appchain_state.status, AppchainStatus::Booting, "The appchain isn't at booting");
 
         let bridge_is_active = self

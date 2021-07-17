@@ -2,19 +2,22 @@ pub mod appchain;
 pub mod bridge;
 pub mod bridging;
 pub mod pipeline;
+pub mod storage_key;
+pub mod storage_migration;
 pub mod types;
 
 use std::convert::{From, TryInto};
 
+use crate::storage_key::StorageKey;
 // To conserve gas, efficient serialization is achieved through Borsh (http://borsh.io/)
 use crate::types::{
-    Appchain, AppchainStatus, BridgeStatus, BridgeToken, Delegator, Fact, LiteValidator, Locked,
-    StorageBalance, Validator, ValidatorSet,
+    Appchain, AppchainStatus, BridgeStatus, BridgeToken, Delegator, Fact, Locked, StorageBalance,
+    Validator, ValidatorSet,
 };
 use appchain::metadata::AppchainMetadata;
 use appchain::state::AppchainState;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LookupMap, UnorderedMap, Vector};
+use near_sdk::collections::{LazyOption, LookupMap, UnorderedMap, Vector};
 use near_sdk::json_types::{ValidAccountId, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
@@ -31,6 +34,9 @@ const SINGLE_CALL_GAS: u64 = 50_000_000_000_000;
 const COMPLEX_CALL_GAS: u64 = 70_000_000_000_000;
 const SIMPLE_CALL_GAS: u64 = 5_000_000_000_000;
 const OCT_DECIMALS_BASE: Balance = 1000_000_000_000_000_000_000_000;
+
+const APPCHAIN_METADATA_NOT_FOUND: &'static str = "Appchain metadata not found";
+const APPCHAIN_STATE_NOT_FOUND: &'static str = "Appchain state not found";
 
 // 20 minutes
 const VALIDATOR_SET_CYCLE: u64 = 20 * 60000000000;
@@ -71,9 +77,9 @@ pub struct OctopusRelay {
     pub token_appchain_total_locked: LookupMap<(AccountId, AppchainId), Balance>,
 
     /// Collection of metadata of all appchains
-    pub appchain_metadatas: UnorderedMap<AppchainId, AppchainMetadata>,
+    pub appchain_metadatas: UnorderedMap<AppchainId, LazyOption<AppchainMetadata>>,
     /// Collection of state data of all appchains
-    pub appchain_states: LookupMap<AppchainId, AppchainState>,
+    pub appchain_states: UnorderedMap<AppchainId, LazyOption<AppchainState>>,
 }
 
 #[ext_contract(ext_self)]
@@ -166,9 +172,8 @@ impl OctopusRelay {
             token_appchain_bridge_permitted: LookupMap::new(b"tas".to_vec()),
             token_appchain_total_locked: LookupMap::new(b"tab".to_vec()),
 
-            // Added by Rivers Yang
-            appchain_metadatas: UnorderedMap::new(b"ac_md".to_vec()),
-            appchain_states: LookupMap::new(b"ac_st".to_vec()),
+            appchain_metadatas: UnorderedMap::new(StorageKey::AppchainMetadatas.into_bytes()),
+            appchain_states: UnorderedMap::new(StorageKey::AppchainStates.into_bytes()),
         }
     }
 
@@ -286,25 +291,67 @@ impl OctopusRelay {
 
         self.appchain_metadatas.insert(
             &appchain_id,
-            &AppchainMetadata::new(
-                appchain_id.clone(),
-                founder_id,
-                website_url,
-                github_address,
-                github_release,
-                commit_id,
-                email,
-                bond_tokens,
+            &LazyOption::new(
+                StorageKey::AppchainMetadata(appchain_id.clone()).into_bytes(),
+                Some(&AppchainMetadata::new(
+                    appchain_id.clone(),
+                    founder_id,
+                    website_url,
+                    github_address,
+                    github_release,
+                    commit_id,
+                    email,
+                    bond_tokens,
+                )),
             ),
         );
-        self.appchain_states
-            .insert(&appchain_id, &AppchainState::new(appchain_id.clone()));
+        self.appchain_states.insert(
+            &appchain_id,
+            &LazyOption::new(
+                StorageKey::AppchainState(appchain_id.clone()).into_bytes(),
+                Some(&AppchainState::new(&appchain_id)),
+            ),
+        );
 
         log!(
             "Appchain added, appchain_id is {}, bund_tokens is {}.",
             appchain_id,
             u128::from(bond_tokens)
         );
+    }
+
+    fn get_appchain_metadata(&self, appchain_id: &AppchainId) -> AppchainMetadata {
+        self.appchain_metadatas
+            .get(appchain_id)
+            .expect(APPCHAIN_METADATA_NOT_FOUND)
+            .get()
+            .expect(APPCHAIN_METADATA_NOT_FOUND)
+    }
+
+    fn set_appchain_metadata(
+        &mut self,
+        appchain_id: &AppchainId,
+        appchain_metadata: &AppchainMetadata,
+    ) {
+        self.appchain_metadatas
+            .get(appchain_id)
+            .expect(APPCHAIN_METADATA_NOT_FOUND)
+            .set(appchain_metadata);
+    }
+
+    fn get_appchain_state(&self, appchain_id: &AppchainId) -> AppchainState {
+        self.appchain_states
+            .get(appchain_id)
+            .expect(APPCHAIN_STATE_NOT_FOUND)
+            .get()
+            .expect(APPCHAIN_STATE_NOT_FOUND)
+    }
+
+    fn set_appchain_state(&mut self, appchain_id: &AppchainId, appchain_state: &AppchainState) {
+        self.appchain_states
+            .get(appchain_id)
+            .expect(APPCHAIN_STATE_NOT_FOUND)
+            .set(appchain_state);
     }
 
     pub fn update_appchain(
@@ -317,15 +364,8 @@ impl OctopusRelay {
         email: String,
     ) {
         let required_status_vec = vec![AppchainStatus::Booting];
-        let appchain_status = self
-            .appchain_states
-            .get(&appchain_id)
-            .expect("Appchain not found")
-            .status;
-        let mut appchain_metadata = self
-            .appchain_metadatas
-            .get(&appchain_id)
-            .expect("Appchain not found");
+        let appchain_status = self.get_appchain_state(&appchain_id).status;
+        let mut appchain_metadata = self.get_appchain_metadata(&appchain_id);
         assert!(
             required_status_vec.iter().any(|s| *s == appchain_status),
             "Appchain can't be updated at current status."
@@ -345,8 +385,7 @@ impl OctopusRelay {
             commit_id,
             email,
         );
-        self.appchain_metadatas
-            .insert(&appchain_id, &appchain_metadata);
+        self.set_appchain_metadata(&appchain_id, &appchain_metadata);
     }
 
     pub fn get_appchains(&self, from_index: u32, limit: u32) -> Vec<Appchain> {
@@ -372,14 +411,8 @@ impl OctopusRelay {
     }
 
     pub fn get_appchain(&self, appchain_id: AppchainId) -> Option<Appchain> {
-        let appchain_metadata = self
-            .appchain_metadatas
-            .get(&appchain_id)
-            .expect("Appchain metadata dose not exist");
-        let appchain_state = self
-            .appchain_states
-            .get(&appchain_id)
-            .expect("Appchain state does not exist");
+        let appchain_metadata = self.get_appchain_metadata(&appchain_id);
+        let appchain_state = self.get_appchain_state(&appchain_id);
         Some(Appchain {
             id: appchain_id.clone(),
             founder_id: appchain_metadata.founder_id.clone(),
@@ -419,10 +452,7 @@ impl OctopusRelay {
     }
 
     pub fn get_validators(&self, appchain_id: AppchainId) -> Option<Vec<Validator>> {
-        let appchain_state = self
-            .appchain_states
-            .get(&appchain_id)
-            .expect("Appchain not found");
+        let appchain_state = self.get_appchain_state(&appchain_id);
         Option::from(
             appchain_state
                 .get_validators()
@@ -437,8 +467,10 @@ impl OctopusRelay {
         appchain_id: AppchainId,
         boot_time: bool,
     ) -> Option<ValidatorSet> {
-        if let Some(appchain_state) = self.appchain_states.get(&appchain_id) {
-            return appchain_state.get_next_validator_set();
+        if let Some(state_option) = self.appchain_states.get(&appchain_id) {
+            if let Some(appchain_state) = state_option.get() {
+                return appchain_state.get_next_validator_set();
+            }
         }
         Option::None
     }
@@ -448,9 +480,11 @@ impl OctopusRelay {
         appchain_id: AppchainId,
         validator_id: ValidatorId,
     ) -> Option<Validator> {
-        if let Some(appchain_state) = self.appchain_states.get(&appchain_id) {
-            if let Some(appchain_validator) = appchain_state.validators.get(&validator_id) {
-                return Option::from(appchain_validator.to_validator());
+        if let Some(state_option) = self.appchain_states.get(&appchain_id) {
+            if let Some(appchain_state) = state_option.get() {
+                if let Some(appchain_validator) = appchain_state.get_validator(&validator_id) {
+                    return Option::from(appchain_validator.to_validator());
+                }
             }
         }
         Option::None
@@ -462,10 +496,14 @@ impl OctopusRelay {
         validator_id: ValidatorId,
         delegator_id: DelegatorId,
     ) -> Option<Delegator> {
-        if let Some(appchain_state) = self.appchain_states.get(&appchain_id) {
-            if let Some(appchain_validator) = appchain_state.validators.get(&validator_id) {
-                if let Some(appchain_delegator) = appchain_validator.delegators.get(&delegator_id) {
-                    return Option::from(appchain_delegator.to_delegator());
+        if let Some(state_option) = self.appchain_states.get(&appchain_id) {
+            if let Some(appchain_state) = state_option.get() {
+                if let Some(appchain_validator) = appchain_state.get_validator(&validator_id) {
+                    if let Some(appchain_delegator) =
+                        appchain_validator.get_delegator(&delegator_id)
+                    {
+                        return Option::from(appchain_delegator.to_delegator());
+                    }
                 }
             }
         }
@@ -474,15 +512,15 @@ impl OctopusRelay {
 
     // Returns the appchain current validator_set len
     pub fn get_curr_validator_set_len(&self, appchain_id: AppchainId) -> u32 {
-        self.appchain_states
-            .get(&appchain_id)
-            .expect("Appchain not found")
+        self.get_appchain_state(&appchain_id)
             .currently_valid_validators_nonce
     }
 
     pub fn get_validator_set(&self, appchain_id: AppchainId) -> Option<ValidatorSet> {
-        if let Some(appchain_state) = self.appchain_states.get(&appchain_id) {
-            return appchain_state.get_current_validator_set();
+        if let Some(state_option) = self.appchain_states.get(&appchain_id) {
+            if let Some(appchain_state) = state_option.get() {
+                return appchain_state.get_current_validator_set();
+            }
         }
         Option::None
     }
@@ -492,21 +530,15 @@ impl OctopusRelay {
         appchain_id: AppchainId,
         set_id: u32,
     ) -> Option<ValidatorSet> {
-        self.appchain_states
-            .get(&appchain_id)
-            .expect("Appchain not found")
+        self.get_appchain_state(&appchain_id)
             .get_validators_history_by_nonce(set_id)
     }
 
     fn in_staking_period(&mut self, appchain_id: AppchainId) -> bool {
         let required_status_vec = vec![AppchainStatus::Staging, AppchainStatus::Booting];
-        required_status_vec.iter().any(|s| {
-            *s == self
-                .appchain_states
-                .get(&appchain_id)
-                .expect("Appchain not found")
-                .status
-        })
+        required_status_vec
+            .iter()
+            .any(|s| *s == self.get_appchain_state(&appchain_id).status)
     }
 
     fn stake(&mut self, appchain_id: AppchainId, id: String, amount: u128) {
@@ -536,13 +568,10 @@ impl OctopusRelay {
             );
         }
 
-        let mut appchain_state = self
-            .appchain_states
-            .get(&appchain_id)
-            .expect("Appchain not found");
+        let mut appchain_state = self.get_appchain_state(&appchain_id);
         appchain_state.stake(&validator_id, amount);
         self.total_staked_balance += amount;
-        self.appchain_states.insert(&appchain_id, &appchain_state);
+        self.set_appchain_state(&appchain_id, &appchain_state);
     }
 
     fn stake_more(&mut self, appchain_id: AppchainId, amount: u128) {
@@ -552,16 +581,13 @@ impl OctopusRelay {
         );
         let account_id = env::signer_account_id();
 
-        let mut appchain_state = self
-            .appchain_states
-            .get(&appchain_id)
-            .expect("Appchain not found");
+        let mut appchain_state = self.get_appchain_state(&appchain_id);
         appchain_state
             .get_validator(&account_id)
             .expect("You are not staking on the appchain");
         appchain_state.stake(&account_id, amount);
         self.total_staked_balance += amount;
-        self.appchain_states.insert(&appchain_id, &appchain_state);
+        self.set_appchain_state(&appchain_id, &appchain_state);
     }
 
     pub fn remove_validator(&mut self, appchain_id: AppchainId, validator_id: String) {
@@ -606,12 +632,9 @@ impl OctopusRelay {
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {
-                let mut appchain_state = self
-                    .appchain_states
-                    .get(&appchain_id)
-                    .expect("Appchain not found");
+                let mut appchain_state = self.get_appchain_state(&appchain_id);
                 self.total_staked_balance -= appchain_state.remove_validator(&validator_id);
-                self.appchain_states.insert(&appchain_id, &appchain_state);
+                self.set_appchain_state(&appchain_id, &appchain_state);
             }
             PromiseResult::Failed => {}
         }
@@ -650,13 +673,9 @@ impl OctopusRelay {
 
     pub fn update_subql_url(&mut self, appchain_id: AppchainId, subql_url: String) {
         self.assert_owner();
-        let mut appchain_metadata = self
-            .appchain_metadatas
-            .get(&appchain_id)
-            .expect("Appchain not found");
+        let mut appchain_metadata = self.get_appchain_metadata(&appchain_id);
         appchain_metadata.update_subql(subql_url);
-        self.appchain_metadatas
-            .insert(&appchain_id, &appchain_metadata);
+        self.set_appchain_metadata(&appchain_id, &appchain_metadata);
     }
 }
 

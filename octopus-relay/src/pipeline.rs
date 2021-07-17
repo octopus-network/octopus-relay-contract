@@ -4,6 +4,7 @@ use near_sdk::{
     assert_self, env, near_bindgen, PromiseOrValue, PromiseResult,
 };
 
+/// Trait for Appchain Pipeline functions
 pub trait AppchainPipeline {
     /// Finish auditing of an appchain (change its status to `AppchainStatus::Voting`).
     /// Can only be called by the owner of Octopus relay.
@@ -50,14 +51,8 @@ impl AppchainPipeline for OctopusRelay {
     //
     fn remove_appchain(&mut self, appchain_id: AppchainId) {
         self.assert_owner();
-        let appchain_metadata = self
-            .appchain_metadatas
-            .get(&appchain_id)
-            .expect("Appchain not found");
-        let appchain_state = self
-            .appchain_states
-            .get(&appchain_id)
-            .expect("Appchain not found");
+        let appchain_metadata = self.get_appchain_metadata(&appchain_id);
+        let appchain_state = self.get_appchain_state(&appchain_id);
         assert_eq!(
             appchain_state.status,
             AppchainStatus::Auditing,
@@ -90,6 +85,7 @@ impl AppchainPipeline for OctopusRelay {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {
                 self.appchain_metadatas.remove(&appchain_id);
+                self.get_appchain_state(&appchain_id).clear_extra_storage();
                 self.appchain_states.remove(&appchain_id);
             }
             PromiseResult::Failed => {}
@@ -98,32 +94,26 @@ impl AppchainPipeline for OctopusRelay {
     //
     fn pass_appchain(&mut self, appchain_id: AppchainId) {
         self.assert_owner();
-        let mut appchain_state = self
-            .appchain_states
-            .get(&appchain_id)
-            .expect("Appchain not found");
+        let mut appchain_state = self.get_appchain_state(&appchain_id);
         assert_eq!(
             &appchain_state.status,
             &AppchainStatus::Auditing,
             "Appchain is not in auditing."
         );
         appchain_state.pass_auditing();
-        self.appchain_states.insert(&appchain_id, &appchain_state);
+        self.set_appchain_state(&appchain_id, &appchain_state);
     }
     //
     fn appchain_go_staging(&mut self, appchain_id: AppchainId) {
         self.assert_owner();
-        let mut appchain_state = self
-            .appchain_states
-            .get(&appchain_id)
-            .expect("Appchain not found");
+        let mut appchain_state = self.get_appchain_state(&appchain_id);
         assert_eq!(
             &appchain_state.status,
             &AppchainStatus::Voting,
             "Appchain is not in queue."
         );
         appchain_state.go_staging();
-        self.appchain_states.insert(&appchain_id, &appchain_state);
+        self.set_appchain_state(&appchain_id, &appchain_state);
     }
     //
     fn activate_appchain(
@@ -137,14 +127,8 @@ impl AppchainPipeline for OctopusRelay {
         chain_spec_raw_hash: String,
     ) -> PromiseOrValue<Option<AppchainStatus>> {
         self.assert_owner();
-        let appchain_metadata = self
-            .appchain_metadatas
-            .get(&appchain_id)
-            .expect("Appchain not found");
-        let appchain_state = self
-            .appchain_states
-            .get(&appchain_id)
-            .expect("Appchain not found");
+        let appchain_metadata = self.get_appchain_metadata(&appchain_id);
+        let appchain_state = self.get_appchain_state(&appchain_id);
         assert_eq!(
             appchain_state.status,
             AppchainStatus::Staging,
@@ -223,10 +207,7 @@ impl AppchainPipeline for OctopusRelay {
     //
     fn freeze_appchain(&mut self, appchain_id: AppchainId) {
         self.assert_owner();
-        let mut appchain_state = self
-            .appchain_states
-            .get(&appchain_id)
-            .expect("Appchain not found");
+        let mut appchain_state = self.get_appchain_state(&appchain_id);
         // Check status
         assert_eq!(
             appchain_state.status,
@@ -236,6 +217,7 @@ impl AppchainPipeline for OctopusRelay {
 
         // Update state
         appchain_state.freeze();
+        self.set_appchain_state(&appchain_id, &appchain_state)
     }
 }
 
@@ -252,10 +234,7 @@ impl OctopusRelay {
         chain_spec_raw_hash: String,
     ) -> Option<AppchainStatus> {
         // Update metadata
-        let mut appchain_metadata = self
-            .appchain_metadatas
-            .get(&appchain_id)
-            .expect("Appchain not found");
+        let mut appchain_metadata = self.get_appchain_metadata(&appchain_id);
         appchain_metadata.update_booting_info(
             boot_nodes,
             rpc_endpoint,
@@ -264,15 +243,11 @@ impl OctopusRelay {
             chain_spec_raw_url,
             chain_spec_raw_hash,
         );
-        self.appchain_metadatas
-            .insert(&appchain_id, &appchain_metadata);
+        self.set_appchain_metadata(&appchain_id, &appchain_metadata);
         // Boot the appchain
-        let mut appchain_state = self
-            .appchain_states
-            .get(&appchain_id)
-            .expect("Appchain not found");
+        let mut appchain_state = self.get_appchain_state(&appchain_id);
         appchain_state.boot();
-        self.appchain_states.insert(&appchain_id, &appchain_state);
+        self.set_appchain_state(&appchain_id, &appchain_state);
         // Return status of the appchain
         Option::from(appchain_state.status)
     }

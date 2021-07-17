@@ -1,10 +1,11 @@
-use crate::utils::{init, register_user};
+use crate::utils::{init, init_by_previous, register_user};
 use near_sdk::json_types::U128;
 use near_sdk::serde_json::json;
 use near_sdk_sim::{to_yocto, ExecutionResult, UserAccount, DEFAULT_GAS};
 use octopus_relay::types::{
     Appchain, AppchainStatus, BridgeStatus, BridgeToken, Fact, Validator, ValidatorSet,
 };
+use num_format::{Locale, ToFormattedString};
 
 pub const initial_balance_str: &str = "100000";
 pub const appchain_minimum_validators: u32 = 2;
@@ -21,6 +22,22 @@ pub fn default_init() -> (
     UserAccount,
 ) {
     let (root, oct, b_token, relay, alice) = init(
+        to_yocto(initial_balance_str),
+        appchain_minimum_validators,
+        to_yocto(minimum_staking_amount_str),
+    );
+
+    (root, oct, b_token, relay, alice)
+}
+
+pub fn default_init_by_previous() -> (
+    UserAccount,
+    UserAccount,
+    UserAccount,
+    UserAccount,
+    UserAccount,
+) {
+    let (root, oct, b_token, relay, alice) = init_by_previous(
         to_yocto(initial_balance_str),
         appchain_minimum_validators,
         to_yocto(minimum_staking_amount_str),
@@ -49,6 +66,7 @@ pub fn default_register_appchain(
         DEFAULT_GAS,
         1,
     );
+    println!("Gas burnt of function 'ft_transfer_call': {}", outcome.gas_burnt().to_formatted_string(&Locale::en));
     outcome.assert_success();
     (outcome, transfer_amount)
 }
@@ -70,6 +88,7 @@ pub fn default_pass_appchain(
         DEFAULT_GAS,
         0,
     );
+    println!("Gas burnt of function 'pass_appchain': {}", outcome.gas_burnt().to_formatted_string(&Locale::en));
     outcome.assert_success();
     (outcome, transfer_amount)
 }
@@ -91,6 +110,7 @@ pub fn default_appchain_go_staging(
         DEFAULT_GAS,
         0,
     );
+    println!("Gas burnt of function 'appchain_go_staging': {}", outcome.gas_burnt().to_formatted_string(&Locale::en));
     outcome.assert_success();
     (outcome, transfer_amount)
 }
@@ -119,6 +139,7 @@ pub fn default_stake(
         DEFAULT_GAS,
         1,
     );
+    println!("Gas burnt of function 'ft_transfer_call': {}", outcome.gas_burnt().to_formatted_string(&Locale::en));
     outcome.assert_success();
     (outcome, transfer_amount)
 }
@@ -148,7 +169,7 @@ pub fn default_update_appchain(root: &UserAccount, relay: &UserAccount) -> Execu
         DEFAULT_GAS,
         0,
     );
-
+    println!("Gas burnt of function 'update_appchain': {}", outcome.gas_burnt().to_formatted_string(&Locale::en));
     outcome.assert_success();
     outcome
 }
@@ -176,6 +197,7 @@ pub fn default_activate_appchain(relay: &UserAccount) -> ExecutionResult {
         DEFAULT_GAS,
         0,
     );
+    println!("Gas burnt of function 'activate_appchain': {}", outcome.gas_burnt().to_formatted_string(&Locale::en));
     outcome.assert_success();
     outcome
 }
@@ -206,6 +228,7 @@ pub fn default_register_bridge_token(
         DEFAULT_GAS,
         0,
     );
+    println!("Gas burnt of function 'register_bridge_token': {}", outcome.gas_burnt().to_formatted_string(&Locale::en));
     outcome.assert_success();
     outcome
 }
@@ -228,6 +251,7 @@ pub fn default_set_bridge_permitted(
         DEFAULT_GAS,
         0,
     );
+    println!("Gas burnt of function 'set_bridge_permitted': {}", outcome.gas_burnt().to_formatted_string(&Locale::en));
     outcome.assert_success();
     outcome
 }
@@ -271,6 +295,7 @@ pub fn lock_token(
         DEFAULT_GAS / 2,
         1,
     );
+    println!("Gas burnt of function 'ft_transfer_call': {}", outcome.gas_burnt().to_formatted_string(&Locale::en));
     outcome.assert_success();
 
     get_facts(&root, &relay)

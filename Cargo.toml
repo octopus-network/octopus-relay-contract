@@ -10,6 +10,7 @@ near-sdk = "=3.0.1"
 near-contract-standards = "3.0.1"
 near-sdk-sim = "=3.0.1"
 hex = "0.4.2"
+num-format = "0.4.0"
 
 # remember to include a line for each contract
 oct-token = { path = "./oct-token" }
