@@ -36,8 +36,6 @@ pub struct AppchainValidator {
     pub block_height: BlockHeight,
     /// Delegators of the validator
     pub delegators: UnorderedMap<DelegatorId, LazyOption<AppchainDelegator>>,
-    ///
-    pub note: String,
 }
 
 /// Appchain state of an appchain of Octopus Network
@@ -330,7 +328,6 @@ impl AppchainState {
                                 )
                                 .into_bytes(),
                             ),
-                            note: String::new(),
                         }),
                     ),
                 );

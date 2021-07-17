@@ -180,12 +180,13 @@ fn simulate_activate_appchain() {
     );
 }
 
-/// Testing for the storage migration
+/// Testing for the storage migration, temporarily comment out.
 ///
 /// For running this test, you need to manually
 /// rename 'res/octopus_relay.wasm' to 'res/previous_octupus_relay.wasm'
 /// before compile the upgraded relay contract
-#[test]
+///
+// #[test]
 fn test_storage_migration() {
     let (root, oct, _, relay, alice) = default_init_by_previous();
     default_appchain_go_staging(&root, &oct, &relay);

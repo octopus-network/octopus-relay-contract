@@ -3,7 +3,7 @@ pub mod bridge;
 pub mod bridging;
 pub mod pipeline;
 pub mod storage_key;
-pub mod storage_migration;
+// pub mod storage_migration;
 pub mod types;
 
 use std::convert::{From, TryInto};
