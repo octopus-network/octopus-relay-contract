@@ -475,6 +475,20 @@ impl OctopusRelay {
         Option::None
     }
 
+    pub fn get_validator_by_account(
+        &self,
+        appchain_id: AppchainId,
+        account_id: AccountId,
+    ) -> Option<Validator> {
+        let appchain_state = self.get_appchain_state(&appchain_id);
+        let validators = appchain_state.get_validators();
+        let validator_option = validators.iter().find(|v| v.account_id == account_id);
+        if let Some(validator) = validator_option {
+            return Option::from(validator.to_validator());
+        }
+        Option::None
+    }
+
     pub fn get_validator(
         &self,
         appchain_id: AppchainId,
@@ -580,12 +594,12 @@ impl OctopusRelay {
             "Appchain can't be staked in current status."
         );
         let account_id = env::signer_account_id();
+        let validator = self
+            .get_validator_by_account(appchain_id.clone(), account_id)
+            .expect("You are not staking on the appchain");
 
         let mut appchain_state = self.get_appchain_state(&appchain_id);
-        appchain_state
-            .get_validator(&account_id)
-            .expect("You are not staking on the appchain");
-        appchain_state.stake(&account_id, amount);
+        appchain_state.stake(&validator.id, amount);
         self.total_staked_balance += amount;
         self.set_appchain_state(&appchain_id, &appchain_state);
     }
