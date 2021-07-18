@@ -42,7 +42,7 @@ pub struct AppchainValidator {
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct AppchainState {
     /// Id of the appchain
-    pub id: AppchainId,
+    pub appchain_id: AppchainId,
     /// Validators collection of the appchain
     pub validators: UnorderedMap<ValidatorId, LazyOption<AppchainValidator>>,
     /// Nonce of validator set of the appchain.
@@ -73,7 +73,7 @@ pub struct AppchainState {
     /// Total staked balance of OCT token of the appchain
     pub staked_balance: Balance,
     /// Total upvote balance of OCT token of the appchain
-    pub upvote_balace: Balance,
+    pub upvote_balance: Balance,
     /// Total downvote balance of OCT token of the appchain
     pub downvote_balance: Balance,
 }
@@ -162,7 +162,7 @@ impl AppchainState {
     /// Return a new instance of AppchainState with the given `AppchainId`
     pub fn new(appchain_id: &AppchainId) -> Self {
         Self {
-            id: appchain_id.clone(),
+            appchain_id: appchain_id.clone(),
             validators: UnorderedMap::new(
                 StorageKey::AppchainValidators(appchain_id.clone()).into_bytes(),
             ),
@@ -178,7 +178,7 @@ impl AppchainState {
             ),
             status: AppchainStatus::Auditing,
             staked_balance: 0,
-            upvote_balace: 0,
+            upvote_balance: 0,
             downvote_balance: 0,
         }
     }
@@ -314,7 +314,7 @@ impl AppchainState {
                 self.validators.insert(
                     &validator_id,
                     &LazyOption::new(
-                        StorageKey::AppchainValidator(self.id.clone(), validator_id.clone())
+                        StorageKey::AppchainValidator(self.appchain_id.clone(), validator_id.clone())
                             .into_bytes(),
                         Some(&AppchainValidator {
                             validator_id: validator_id.clone(),
@@ -323,7 +323,7 @@ impl AppchainState {
                             block_height: env::block_index(),
                             delegators: UnorderedMap::new(
                                 StorageKey::AppchainDelegators(
-                                    self.id.clone(),
+                                    self.appchain_id.clone(),
                                     validator_id.clone(),
                                 )
                                 .into_bytes(),
@@ -350,7 +350,7 @@ impl AppchainState {
             self.removed_validators.insert(
                 &validator_id,
                 &LazyOption::new(
-                    StorageKey::AppchainValidator(self.id.clone(), validator_id.clone())
+                    StorageKey::AppchainValidator(self.appchain_id.clone(), validator_id.clone())
                         .into_bytes(),
                     Some(&validator),
                 ),
