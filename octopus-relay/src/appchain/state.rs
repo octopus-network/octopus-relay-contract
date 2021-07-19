@@ -212,11 +212,15 @@ impl AppchainState {
         }
         Option::None
     }
-    /// Get validator set of the next period of cycle of current appchain
+    /// Get validator set of the next epoch
     pub fn get_next_validator_set(&self) -> Option<ValidatorSet> {
         if !self.status.eq(&AppchainStatus::Booting) {
             return Option::None;
         }
+        Option::from(self.get_latest_validator_set())
+    }
+    // Convert current validators array to struct `ValidatorSet`
+    fn get_latest_validator_set(&self) -> ValidatorSet {
         let mut validators: Vec<LiteValidator> = self
             .validators
             .values_as_vector()
@@ -224,15 +228,17 @@ impl AppchainState {
             .filter(|v| v.is_some())
             .map(|v| v.get().unwrap().to_lite_validator())
             .collect();
-        validators.sort_by(|a, b| u128::from(b.weight).cmp(&a.weight.into()));
+        validators.sort_by(|a, b| a.id.cmp(&b.id));
         let next_sequence_number = self.facts.len().try_into().unwrap_or(0);
-        Option::from(ValidatorSet {
+        ValidatorSet {
             seq_num: next_sequence_number,
             set_id: self.validators_nonce,
             validators,
-        })
+        }
     }
-    // Get validator set of current period of cycle of current validators
+    /// Get validator set of current epoch
+    ///
+    /// The return data is come from the facts of the appchain
     pub fn get_current_validator_set(&self) -> Option<ValidatorSet> {
         if !self.status.eq(&AppchainStatus::Booting) {
             return Option::None;
@@ -262,19 +268,7 @@ impl AppchainState {
         self.status = AppchainStatus::Booting;
         self.validators_timestamp = env::block_timestamp();
         self.booting_timestamp = env::block_timestamp();
-        let mut validators: Vec<LiteValidator> = self
-            .validators
-            .values_as_vector()
-            .iter()
-            .filter(|v| v.is_some())
-            .map(|v| v.get().unwrap().to_lite_validator())
-            .collect();
-        validators.sort_by(|a, b| u128::from(b.weight).cmp(&a.weight.into()));
-        self.facts.push(&Fact::UpdateValidatorSet(ValidatorSet {
-            seq_num: 0,
-            set_id: 0,
-            validators,
-        }));
+        self.facts.push(&Fact::UpdateValidatorSet(self.get_latest_validator_set()));
     }
     /// Stake some OCT tokens to the appchain
     pub fn stake(&mut self, validator_id: &ValidatorId, amount: &Balance) -> bool {
@@ -408,9 +402,9 @@ impl AppchainState {
     ) {
         let new_amount = self.total_locked_tokens.get(&token_id).unwrap_or(0) + amount;
         self.total_locked_tokens.insert(&token_id, &new_amount);
-        let sequence_number = self.facts.len().try_into().unwrap_or(0);
+        let next_sequence_number = self.facts.len().try_into().unwrap_or(0);
         self.facts.push(&Fact::LockToken(Locked {
-            seq_num: sequence_number,
+            seq_num: next_sequence_number,
             token_id,
             sender_id,
             receiver,
