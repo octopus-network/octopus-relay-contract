@@ -8,7 +8,8 @@ pub enum StorageKey {
     AppchainState(AppchainId),
     AppchainValidators(AppchainId),
     RemovedAppchainValidators(AppchainId),
-    AppchainValidatorsHistories(AppchainId),
+    AppchainFacts(AppchainId),
+    AppchainTotalLockedTokens(AppchainId),
     AppchainValidator(AppchainId, ValidatorId),
     AppchainDelegators(AppchainId, ValidatorId),
     AppchainDelegator(AppchainId, ValidatorId, DelegatorId),
@@ -39,9 +40,14 @@ impl StorageKey {
                 key.push_str("r");
                 key
             }
-            StorageKey::AppchainValidatorsHistories(appchain_id) => {
+            StorageKey::AppchainFacts(appchain_id) => {
                 let mut key = appchain_id.clone();
-                key.push_str("h");
+                key.push_str("f");
+                key
+            }
+            StorageKey::AppchainTotalLockedTokens(appchain_id) => {
+                let mut key = appchain_id.clone();
+                key.push_str("t");
                 key
             }
             StorageKey::AppchainValidator(appchain_id, validator_id) => {

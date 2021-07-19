@@ -11,7 +11,7 @@ use std::convert::{From, TryInto};
 use crate::storage_key::StorageKey;
 // To conserve gas, efficient serialization is achieved through Borsh (http://borsh.io/)
 use crate::types::{
-    Appchain, AppchainStatus, BridgeStatus, BridgeToken, Delegator, Fact, Locked, StorageBalance,
+    Appchain, AppchainStatus, BridgeStatus, BridgeToken, Delegator, Fact, StorageBalance,
     Validator, ValidatorSet,
 };
 use appchain::metadata::AppchainMetadata;
@@ -59,11 +59,6 @@ pub struct OctopusRelay {
     pub total_staked_balance: Balance,
     pub appchain_id_list: Vector<AppchainId>,
 
-    // Using lookupmap instead of vectors to clean up historical data
-    // in the future without affecting the sequence numbers
-    pub appchain_data_fact_sets_len: LookupMap<AppchainId, SeqNum>,
-    pub appchain_data_fact_set: LookupMap<(AppchainId, SeqNum), Fact>,
-
     pub bridge_token_data_symbol: UnorderedMap<AccountId, String>,
     pub bridge_symbol_to_token: LookupMap<String, AccountId>,
     pub bridge_token_data_status: LookupMap<AccountId, BridgeStatus>,
@@ -74,7 +69,6 @@ pub struct OctopusRelay {
     pub oct_token_price: u128, // 1_000_000 as 1usd
 
     pub token_appchain_bridge_permitted: LookupMap<(AccountId, AppchainId), bool>,
-    pub token_appchain_total_locked: LookupMap<(AccountId, AppchainId), Balance>,
 
     /// Collection of metadata of all appchains
     pub appchain_metadatas: UnorderedMap<AppchainId, LazyOption<AppchainMetadata>>,
@@ -156,9 +150,6 @@ impl OctopusRelay {
             minimum_staking_amount: minimum_staking_amount.0,
             appchain_id_list: Vector::new(b"ail".to_vec()),
 
-            appchain_data_fact_sets_len: LookupMap::new(b"fsl".to_vec()),
-            appchain_data_fact_set: LookupMap::new(b"fs".to_vec()),
-
             bridge_token_data_symbol: UnorderedMap::new(b"ts".to_vec()),
             bridge_symbol_to_token: LookupMap::new(b"stt".to_vec()),
             bridge_token_data_status: LookupMap::new(b"tst".to_vec()),
@@ -170,7 +161,6 @@ impl OctopusRelay {
             oct_token_price: oct_token_price.into(),
 
             token_appchain_bridge_permitted: LookupMap::new(b"tas".to_vec()),
-            token_appchain_total_locked: LookupMap::new(b"tab".to_vec()),
 
             appchain_metadatas: UnorderedMap::new(StorageKey::AppchainMetadatas.into_bytes()),
             appchain_states: UnorderedMap::new(StorageKey::AppchainStates.into_bytes()),
@@ -287,7 +277,6 @@ impl OctopusRelay {
             "Appchain_id is already registered"
         );
         self.appchain_id_list.push(&appchain_id);
-        self.appchain_data_fact_sets_len.insert(&appchain_id, &0);
 
         self.appchain_metadatas.insert(
             &appchain_id,
@@ -434,11 +423,7 @@ impl OctopusRelay {
             block_height: appchain_metadata.block_height,
             staked_balance: appchain_state.staked_balance.into(),
             subql_url: appchain_metadata.subql_url.clone(),
-            fact_sets_len: self
-                .appchain_data_fact_sets_len
-                .get(&appchain_id)
-                .unwrap_or(0)
-                .into(),
+            fact_sets_len: appchain_state.facts.len().try_into().unwrap_or(0),
             validator_sets_len: appchain_state.currently_valid_validators_nonce,
         })
     }
@@ -545,7 +530,7 @@ impl OctopusRelay {
         set_id: u32,
     ) -> Option<ValidatorSet> {
         self.get_appchain_state(&appchain_id)
-            .get_validators_history_by_nonce(set_id)
+            .get_validators_history_by_nonce(&set_id)
     }
 
     fn in_staking_period(&mut self, appchain_id: AppchainId) -> bool {
@@ -583,7 +568,7 @@ impl OctopusRelay {
         }
 
         let mut appchain_state = self.get_appchain_state(&appchain_id);
-        appchain_state.stake(&validator_id, amount);
+        appchain_state.stake(&validator_id, &amount);
         self.total_staked_balance += amount;
         self.set_appchain_state(&appchain_id, &appchain_state);
     }
@@ -599,7 +584,7 @@ impl OctopusRelay {
             .expect("You are not staking on the appchain");
 
         let mut appchain_state = self.get_appchain_state(&appchain_id);
-        appchain_state.stake(&validator.id, amount);
+        appchain_state.stake(&validator.id, &amount);
         self.total_staked_balance += amount;
         self.set_appchain_state(&appchain_id, &appchain_state);
     }

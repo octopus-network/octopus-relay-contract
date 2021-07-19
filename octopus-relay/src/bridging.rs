@@ -18,33 +18,10 @@ impl OctopusRelay {
             "Bridge not allowed: Insufficient staked amount"
         );
 
-        // update_validator_set for checking if there is a validator_set fact
-        // before new lock_token fact be created.
-        // self.update_validator_set(appchain_id.clone());
+        let mut appchain_state = self.get_appchain_state(&appchain_id);
+        appchain_state.lock_token(receiver, sender_id, token_id, amount);
+        self.set_appchain_state(&appchain_id, &appchain_state);
 
-        let total_locked: Balance = self
-            .token_appchain_total_locked
-            .get(&(token_id.clone(), appchain_id.clone()))
-            .unwrap_or(0);
-        let next_total_locked = total_locked + u128::from(amount);
-        self.token_appchain_total_locked.insert(
-            &(token_id.clone(), appchain_id.clone()),
-            &(next_total_locked),
-        );
-
-        let seq_num = self.appchain_data_fact_sets_len.get(&appchain_id).unwrap();
-        self.appchain_data_fact_set.insert(
-            &(appchain_id.clone(), seq_num),
-            &Fact::LockToken(Locked {
-                seq_num,
-                token_id,
-                sender_id,
-                receiver,
-                amount: amount.into(),
-            }),
-        );
-        self.appchain_data_fact_sets_len
-            .insert(&appchain_id, &(seq_num + 1));
         amount.into()
     }
 
@@ -59,17 +36,19 @@ impl OctopusRelay {
     ) {
         let deposit: Balance = env::attached_deposit();
         // prover todo
-        let token_appchain_total_locked = self
-            .token_appchain_total_locked
-            .get(&(token_id.clone(), appchain_id.clone()))
-            .expect("You should lock token before unlock.");
+        let appchain_state = self.get_appchain_state(&appchain_id);
+        let total_locked_amount = appchain_state.get_total_locked_amount_of(&token_id);
 
+        assert!(
+            total_locked_amount > 0,
+            "You should lock token before unlock."
+        );
         assert!(
             deposit >= 1250000000000000000000,
             "Attached deposit should be at least 0.00125."
         );
         assert!(
-            token_appchain_total_locked >= amount.0,
+            total_locked_amount >= amount.0,
             "Insufficient locked balance!"
         );
 
@@ -188,40 +167,16 @@ impl OctopusRelay {
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {
-                let total_locked: Balance = self
-                    .token_appchain_total_locked
-                    .get(&(token_id.clone(), appchain_id.clone()))
-                    .unwrap_or(0);
-                let next_total_locked = total_locked - u128::from(amount);
-                self.token_appchain_total_locked
-                    .insert(&(token_id, appchain_id), &(next_total_locked));
+                let mut appchain_state = self.get_appchain_state(&appchain_id);
+                appchain_state.unlock_token(token_id, amount.0);
+                self.set_appchain_state(&appchain_id, &appchain_state);
             }
             PromiseResult::Failed => {}
         }
     }
 
     pub fn get_facts(&self, appchain_id: AppchainId, start: SeqNum, limit: SeqNum) -> Vec<Fact> {
-        let fact_sets_len = self.appchain_data_fact_sets_len.get(&appchain_id).unwrap();
-        let end = std::cmp::min(start + limit, fact_sets_len);
-        let fact_sets: Vec<Fact> = (start..end)
-            .map(|index| {
-                let fact = self
-                    .appchain_data_fact_set
-                    .get(&(appchain_id.clone(), index))
-                    .unwrap();
-                fact
-            })
-            .collect();
-        // Commented out the following logic because of the refactoring of relay contract.
-        // Now the fact collection only for facts of cross chain tokens transformation.
-        //
-        // let next_validator_set_option = self.next_validator_set(appchain_id.clone(), false);
-        // if next_validator_set_option.is_some() {
-        //     let next_validator_set = next_validator_set_option.unwrap();
-        //     if next_validator_set.seq_num < end && next_validator_set.seq_num >= start {
-        //         fact_sets.push(Fact::UpdateValidatorSet(next_validator_set));
-        //     }
-        // }
-        fact_sets
+        let appchain_state = self.get_appchain_state(&appchain_id);
+        appchain_state.get_facts(&start, &limit)
     }
 }

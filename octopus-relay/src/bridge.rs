@@ -116,11 +116,9 @@ impl OctopusRelay {
             / 10000;
         let mut total_used_val: Balance = 0;
         self.bridge_token_data_symbol.iter().for_each(|(bt_id, _)| {
+            let appchain_state = self.get_appchain_state(&appchain_id);
             let bt_price = self.bridge_token_data_price.get(&bt_id).unwrap();
-            let bt_locked = self
-                .token_appchain_total_locked
-                .get(&(bt_id.clone(), appchain_id.clone()))
-                .unwrap_or(0);
+            let bt_locked = appchain_state.get_total_locked_amount_of(&token_id);
             let bt_decimals = self.bridge_token_data_decimals.get(&bt_id).unwrap();
             let bt_decimals_base = (10 as u128).pow(bt_decimals);
             let used_val: Balance = bt_locked * bt_price / bt_decimals_base;
