@@ -1,9 +1,4 @@
-use crate::default::{
-    appchain_minimum_validators, default_activate_appchain, default_appchain_go_staging,
-    default_init, default_pass_appchain, default_register_appchain, default_register_bridge_token,
-    default_set_bridge_permitted, default_stake, default_update_appchain, initial_balance_str,
-    lock_token, minimum_staking_amount_str, to_decimals_amount, val_id0, val_id1,
-};
+use crate::{default::{appchain_minimum_validators, default_activate_appchain, default_appchain_go_staging, default_init, default_init_by_previous, default_pass_appchain, default_register_appchain, default_register_bridge_token, default_set_bridge_permitted, default_stake, default_update_appchain, initial_balance_str, lock_token, minimum_staking_amount_str, to_decimals_amount, val_id0, val_id1}, utils::upgrade_contract_code_and_perform_migration};
 use near_sdk::json_types::U128;
 use near_sdk::serde_json::json;
 use near_sdk_sim::{to_yocto, ExecutionResult, UserAccount, DEFAULT_GAS};
@@ -96,7 +91,7 @@ fn simulate_pass_appchain() {
         .unwrap_json();
 
     let appchain = appchain_option.unwrap();
-    assert_eq!(appchain.status, AppchainStatus::InQueue);
+    assert_eq!(appchain.status, AppchainStatus::Voting);
 }
 
 #[test]
@@ -158,6 +153,50 @@ fn simulate_activate_appchain() {
     default_stake(&root, &oct, &relay, val_id0);
     default_stake(&alice, &oct, &relay, val_id1);
     default_activate_appchain(&relay);
+
+    let appchain_option: Option<Appchain> = root
+        .view(
+            relay.account_id(),
+            "get_appchain",
+            &json!({
+                "appchain_id": "testchain"
+            })
+            .to_string()
+            .into_bytes(),
+        )
+        .unwrap_json();
+
+    let appchain = appchain_option.unwrap();
+    assert_eq!(appchain.status, AppchainStatus::Booting);
+    assert_eq!(appchain.chain_spec_url, String::from("chain_spec_url"));
+    assert_eq!(appchain.chain_spec_hash, String::from("chain_spec_hash"));
+    assert_eq!(
+        appchain.chain_spec_raw_url,
+        String::from("chain_spec_raw_url")
+    );
+    assert_eq!(
+        appchain.chain_spec_raw_hash,
+        String::from("chain_spec_raw_hash")
+    );
+}
+
+/// Testing for the storage migration, temporarily comment out.
+///
+/// For running this test, you need to manually
+/// rename 'res/octopus_relay.wasm' to 'res/previous_octupus_relay.wasm'
+/// before compile the upgraded relay contract
+///
+// #[test]
+fn test_storage_migration() {
+    let (root, oct, _, relay, alice) = default_init_by_previous();
+    default_appchain_go_staging(&root, &oct, &relay);
+    default_stake(&root, &oct, &relay, val_id0);
+    default_stake(&alice, &oct, &relay, val_id1);
+    default_activate_appchain(&relay);
+
+    println!("Start migration...");
+    upgrade_contract_code_and_perform_migration(&relay);
+    println!("Migration ended.");
 
     let appchain_option: Option<Appchain> = root
         .view(
