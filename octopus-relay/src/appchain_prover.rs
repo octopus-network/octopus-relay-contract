@@ -1,4 +1,5 @@
 use near_sdk::log;
+use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 
 use sp_core::H256;
 use sp_runtime::generic::{Digest, DigestItem, Header};
@@ -82,7 +83,7 @@ where
 		.map_err(|e| pallet_mmr_primitives::Error::Verify.log_debug(e))
 }
 
-struct HeaderPartial {
+pub struct HeaderPartial {
 	/// The parent hash.
 	parent_hash: H256,
 	/// The block number.
@@ -95,9 +96,8 @@ struct HeaderPartial {
 	digest: Digest<H256>,
 }
 
-struct AppchainProver {
-	method_name: String,
-}
+#[derive(BorshDeserialize, BorshSerialize)]
+pub struct AppchainProver;
 
 impl AppchainProver {
 	pub fn verify(
@@ -245,7 +245,7 @@ mod tests {
 			H256::from_str("0x403610894a01ee6a72d6128afe96b483b848cf84f21697438c2fa12a6dfd4381")
 				.unwrap();
 
-		let ap = AppchainProver { method_name: "foo".to_string() };
+		let ap = AppchainProver;
 		assert_eq!(ap.verify(messages, header_partial, leaf_proof, mmr_root), true);
 	}
 }

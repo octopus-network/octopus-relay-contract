@@ -35,7 +35,6 @@ impl OctopusRelay {
         amount: U128,
     ) {
         let deposit: Balance = env::attached_deposit();
-        // prover todo
         let appchain_state = self.get_appchain_state(&appchain_id);
         let total_locked_amount = appchain_state.get_total_locked_amount_of(&token_id);
 
@@ -51,6 +50,14 @@ impl OctopusRelay {
             total_locked_amount >= amount.0,
             "Insufficient locked balance!"
         );
+
+        // TODO: madwiki
+        // assert!(
+        //     appchain_state.prover.verify(encoded_messages, header_partial, leaf_proof, mmr_root),
+        //     "Invalid cross-chain message."
+        // );
+
+        // let (appchain_id, token_id, sender, receiver_id, amount) = Decode::decode(encoded_messages);
 
         ext_token::storage_balance_of(receiver_id.clone(), &token_id, deposit, SIMPLE_CALL_GAS)
             .then(ext_self::check_bridge_token_storage_deposit(
