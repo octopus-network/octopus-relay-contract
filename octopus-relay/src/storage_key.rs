@@ -9,63 +9,63 @@ pub enum StorageKey {
     AppchainValidators(AppchainId),
     RemovedAppchainValidators(AppchainId),
     AppchainFacts(AppchainId),
+    AppchainFact {
+        appchain_id: AppchainId,
+        fact_index: u32,
+    },
     AppchainTotalLockedTokens(AppchainId),
     AppchainValidator(AppchainId, ValidatorId),
     AppchainDelegators(AppchainId, ValidatorId),
     AppchainDelegator(AppchainId, ValidatorId, DelegatorId),
+    AppchainFactValidators {
+        appchain_id: AppchainId,
+        fact_index: u32,
+    },
+    AppchainFactValidator {
+        appchain_id: AppchainId,
+        fact_index: u32,
+        validator_index: u32,
+    },
 }
 
 impl StorageKey {
     pub fn to_string(&self) -> String {
         match self {
             StorageKey::AppchainMetadatas => "am".to_string(),
-            StorageKey::AppchainMetadata(appchain_id) => {
-                let mut key = appchain_id.clone();
-                key.push_str("m");
-                key
-            }
+            StorageKey::AppchainMetadata(appchain_id) => format!("{}m", appchain_id),
             StorageKey::AppchainStates => "as".to_string(),
-            StorageKey::AppchainState(appchain_id) => {
-                let mut key = appchain_id.clone();
-                key.push_str("s");
-                key
+            StorageKey::AppchainState(appchain_id) => format!("{}s", appchain_id),
+            StorageKey::AppchainValidators(appchain_id) => format!("{}v", appchain_id),
+            StorageKey::RemovedAppchainValidators(appchain_id) => format!("{}r", appchain_id),
+            StorageKey::AppchainFacts(appchain_id) => format!("{}f", appchain_id),
+            StorageKey::AppchainFact {
+                appchain_id,
+                fact_index,
+            } => {
+                format!("{}{:010}", appchain_id, fact_index)
             }
-            StorageKey::AppchainValidators(appchain_id) => {
-                let mut key = appchain_id.clone();
-                key.push_str("v");
-                key
-            }
-            StorageKey::RemovedAppchainValidators(appchain_id) => {
-                let mut key = appchain_id.clone();
-                key.push_str("r");
-                key
-            }
-            StorageKey::AppchainFacts(appchain_id) => {
-                let mut key = appchain_id.clone();
-                key.push_str("f");
-                key
-            }
-            StorageKey::AppchainTotalLockedTokens(appchain_id) => {
-                let mut key = appchain_id.clone();
-                key.push_str("t");
-                key
-            }
+            StorageKey::AppchainTotalLockedTokens(appchain_id) => format!("{}t", appchain_id),
             StorageKey::AppchainValidator(appchain_id, validator_id) => {
-                let mut key = appchain_id.clone();
-                key.push_str(validator_id.as_str());
-                key
+                format!("{}{}", appchain_id, validator_id)
             }
             StorageKey::AppchainDelegators(appchain_id, validator_id) => {
-                let mut key = appchain_id.clone();
-                key.push_str(validator_id.as_str());
-                key.push_str("d");
-                key
+                format!("{}{}d", appchain_id, validator_id)
             }
             StorageKey::AppchainDelegator(appchain_id, validator_id, delegator_id) => {
-                let mut key = appchain_id.clone();
-                key.push_str(validator_id.as_str());
-                key.push_str(delegator_id.as_str());
-                key
+                format!("{}{}{}", appchain_id, validator_id, delegator_id)
+            }
+            StorageKey::AppchainFactValidators {
+                appchain_id,
+                fact_index,
+            } => {
+                format!("{}{:010}v", appchain_id, fact_index)
+            }
+            StorageKey::AppchainFactValidator {
+                appchain_id,
+                fact_index,
+                validator_index,
+            } => {
+                format!("{}{:010}{:010}", appchain_id, fact_index, validator_index)
             }
         }
     }
