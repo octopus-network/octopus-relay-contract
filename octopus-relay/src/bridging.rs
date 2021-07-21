@@ -1,8 +1,49 @@
 use crate::*;
 
+/// Trait for bridging tokens between token contracts and appchains
+pub trait TokenBridging {
+    /// Lock token in relay contract for an appchain
+    fn lock_token(
+        &mut self,
+        appchain_id: AppchainId,
+        receiver: String,
+        sender_id: AccountId,
+        token_id: AccountId,
+        amount: u128,
+    ) -> U128;
+    /// Unlock token in relay contract for an appchain
+    fn unlock_token(
+        &mut self,
+        appchain_id: AppchainId,
+        token_id: AccountId,
+        sender: String,
+        receiver_id: ValidAccountId,
+        amount: U128,
+    );
+    /// TODO! add comment for this function
+    fn check_bridge_token_storage_deposit(
+        &mut self,
+        deposit: Balance,
+        receiver_id: ValidAccountId,
+        token_id: AccountId,
+        appchain_id: AppchainId,
+        amount: U128,
+    );
+    /// Callback for checking bridge token storage deposit
+    fn resolve_bridge_token_storage_deposit(
+        &mut self,
+        deposit: Balance,
+        receiver_id: AccountId,
+        amount: U128,
+        token_id: AccountId,
+    ) -> Promise;
+    /// Callback for result of unlock token action
+    fn resolve_unlock_token(&mut self, token_id: AccountId, appchain_id: AppchainId, amount: U128);
+}
+
 #[near_bindgen]
-impl OctopusRelay {
-    pub fn lock_token(
+impl TokenBridging for OctopusRelay {
+    fn lock_token(
         &mut self,
         appchain_id: AppchainId,
         receiver: String,
@@ -26,7 +67,7 @@ impl OctopusRelay {
     }
 
     #[payable]
-    pub fn unlock_token(
+    fn unlock_token(
         &mut self,
         appchain_id: AppchainId,
         token_id: AccountId,
@@ -65,7 +106,7 @@ impl OctopusRelay {
             ));
     }
 
-    pub fn check_bridge_token_storage_deposit(
+    fn check_bridge_token_storage_deposit(
         &mut self,
         deposit: Balance,
         receiver_id: ValidAccountId,
@@ -122,7 +163,7 @@ impl OctopusRelay {
         }
     }
 
-    pub fn resolve_bridge_token_storage_deposit(
+    fn resolve_bridge_token_storage_deposit(
         &mut self,
         deposit: Balance,
         receiver_id: AccountId,
@@ -157,12 +198,7 @@ impl OctopusRelay {
         }
     }
 
-    pub fn resolve_unlock_token(
-        &mut self,
-        token_id: AccountId,
-        appchain_id: AppchainId,
-        amount: U128,
-    ) {
+    fn resolve_unlock_token(&mut self, token_id: AccountId, appchain_id: AppchainId, amount: U128) {
         assert_self();
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
@@ -173,10 +209,5 @@ impl OctopusRelay {
             }
             PromiseResult::Failed => {}
         }
-    }
-
-    pub fn get_facts(&self, appchain_id: AppchainId, start: SeqNum, limit: SeqNum) -> Vec<Fact> {
-        let appchain_state = self.get_appchain_state(&appchain_id);
-        appchain_state.get_facts(&start, &limit)
     }
 }
