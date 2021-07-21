@@ -1,3 +1,4 @@
+use crate::bridge_token_manager::BridgeTokenManager;
 use crate::*;
 
 /// Trait for bridging tokens between token contracts and appchains

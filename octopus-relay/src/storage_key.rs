@@ -1,7 +1,10 @@
+use near_sdk::AccountId;
+
 use crate::{AppchainId, DelegatorId, ValidatorId};
 
 /// Storage keys for collections of sub-struct in main contract
 pub enum StorageKey {
+    AppchainIdList,
     AppchainMetadatas,
     AppchainMetadata(AppchainId),
     AppchainStates,
@@ -26,11 +29,19 @@ pub enum StorageKey {
         fact_index: u32,
         validator_index: u32,
     },
+    BridgeTokens,
+    RelayedBridgeToken {
+        token_id: AccountId,
+    },
+    RelayedBridgeTokenPermissions {
+        token_id: AccountId,
+    },
 }
 
 impl StorageKey {
     pub fn to_string(&self) -> String {
         match self {
+            StorageKey::AppchainIdList => "ail".to_string(),
             StorageKey::AppchainMetadatas => "am".to_string(),
             StorageKey::AppchainMetadata(appchain_id) => format!("{}m", appchain_id),
             StorageKey::AppchainStates => "as".to_string(),
@@ -66,6 +77,13 @@ impl StorageKey {
                 validator_index,
             } => {
                 format!("{}{:010}{:010}", appchain_id, fact_index, validator_index)
+            }
+            StorageKey::BridgeTokens => "bts".to_string(),
+            StorageKey::RelayedBridgeToken { token_id } => {
+                format!("rt{}", token_id)
+            }
+            StorageKey::RelayedBridgeTokenPermissions { token_id } => {
+                format!("rt{}ps", token_id)
             }
         }
     }

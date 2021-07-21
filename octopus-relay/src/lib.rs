@@ -1,8 +1,9 @@
-pub mod appchain;
-pub mod bridge;
-pub mod bridging;
-pub mod pipeline;
-pub mod storage_key;
+mod appchain;
+mod bridge_token_manager;
+mod bridging;
+mod pipeline;
+mod relayed_bridge_token;
+mod storage_key;
 // pub mod storage_migration;
 pub mod types;
 
@@ -12,19 +13,19 @@ use crate::bridging::TokenBridging;
 use crate::storage_key::StorageKey;
 // To conserve gas, efficient serialization is achieved through Borsh (http://borsh.io/)
 use crate::types::{
-    Appchain, AppchainStatus, BridgeStatus, BridgeToken, Delegator, Fact, StorageBalance,
-    Validator, ValidatorSet,
+    Appchain, AppchainStatus, BridgeToken, Delegator, Fact, StorageBalance, Validator, ValidatorSet,
 };
 use appchain::metadata::AppchainMetadata;
 use appchain::state::AppchainState;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LazyOption, LookupMap, UnorderedMap, Vector};
+use near_sdk::collections::{LazyOption, UnorderedMap, Vector};
 use near_sdk::json_types::{ValidAccountId, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     assert_self, env, ext_contract, log, near_bindgen, wee_alloc, AccountId, Balance, BlockHeight,
     Promise, PromiseOrValue, PromiseResult,
 };
+use relayed_bridge_token::RelayedBridgeToken;
 
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
@@ -58,19 +59,15 @@ pub struct OctopusRelay {
     pub appchain_minimum_validators: u32,
     pub minimum_staking_amount: Balance,
     pub total_staked_balance: Balance,
-    pub appchain_id_list: Vector<AppchainId>,
 
-    pub bridge_token_data_symbol: UnorderedMap<AccountId, String>,
-    pub bridge_symbol_to_token: LookupMap<String, AccountId>,
-    pub bridge_token_data_status: LookupMap<AccountId, BridgeStatus>,
-    pub bridge_token_data_price: LookupMap<AccountId, Balance>,
-    pub bridge_token_data_decimals: LookupMap<AccountId, u32>,
     pub bridge_limit_ratio: u16, // 100 as 1%
     pub owner: AccountId,
     pub oct_token_price: u128, // 1_000_000 as 1usd
 
-    pub token_appchain_bridge_permitted: LookupMap<(AccountId, AppchainId), bool>,
-
+    /// Array of appchain ids
+    pub appchain_id_list: Vector<AppchainId>,
+    /// Collection of bridge tokens
+    pub bridge_tokens: UnorderedMap<AccountId, LazyOption<RelayedBridgeToken>>,
     /// Collection of metadata of all appchains
     pub appchain_metadatas: UnorderedMap<AppchainId, LazyOption<AppchainMetadata>>,
     /// Collection of state data of all appchains
@@ -149,20 +146,13 @@ impl OctopusRelay {
             total_staked_balance: 0,
             appchain_minimum_validators,
             minimum_staking_amount: minimum_staking_amount.0,
-            appchain_id_list: Vector::new(b"ail".to_vec()),
-
-            bridge_token_data_symbol: UnorderedMap::new(b"ts".to_vec()),
-            bridge_symbol_to_token: LookupMap::new(b"stt".to_vec()),
-            bridge_token_data_status: LookupMap::new(b"tst".to_vec()),
-            bridge_token_data_price: LookupMap::new(b"tp".to_vec()),
-            bridge_token_data_decimals: LookupMap::new(b"td".to_vec()),
 
             owner: env::current_account_id(),
             bridge_limit_ratio,
             oct_token_price: oct_token_price.into(),
 
-            token_appchain_bridge_permitted: LookupMap::new(b"tas".to_vec()),
-
+            appchain_id_list: Vector::new(StorageKey::AppchainIdList.into_bytes()),
+            bridge_tokens: UnorderedMap::new(StorageKey::BridgeTokens.into_bytes()),
             appchain_metadatas: UnorderedMap::new(StorageKey::AppchainMetadatas.into_bytes()),
             appchain_states: UnorderedMap::new(StorageKey::AppchainStates.into_bytes()),
         }
