@@ -9,6 +9,7 @@ pub mod types;
 
 use std::convert::{From, TryInto};
 
+use crate::bridging::TokenBridging;
 use crate::storage_key::StorageKey;
 // To conserve gas, efficient serialization is achieved through Borsh (http://borsh.io/)
 use crate::types::{
@@ -676,6 +677,11 @@ impl OctopusRelay {
         let mut appchain_metadata = self.get_appchain_metadata(&appchain_id);
         appchain_metadata.update_subql(subql_url);
         self.set_appchain_metadata(&appchain_id, &appchain_metadata);
+    }
+
+    pub fn get_facts(&self, appchain_id: AppchainId, start: SeqNum, limit: SeqNum) -> Vec<Fact> {
+        let appchain_state = self.get_appchain_state(&appchain_id);
+        appchain_state.get_facts(&start, &limit)
     }
 }
 
