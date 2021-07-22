@@ -61,6 +61,9 @@ impl TokenBridging for OctopusRelay {
         );
 
         let mut appchain_state = self.get_appchain_state(&appchain_id);
+
+        // Try to create validators_history before lock_token.
+        appchain_state.create_validators_history(false);
         appchain_state.lock_token(receiver, sender_id, token_id, amount);
         self.set_appchain_state(&appchain_id, &appchain_state);
 

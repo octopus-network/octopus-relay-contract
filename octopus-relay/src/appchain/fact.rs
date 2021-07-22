@@ -13,7 +13,6 @@ pub struct AppchainValidatorSet {
     pub sequence_number: SeqNum,
     pub set_id: u32,
     pub validators: Vector<LazyOption<AppchainValidator>>,
-    pub timestamp: Timestamp,
     pub epoch_number: u32,
 }
 
