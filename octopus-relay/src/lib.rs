@@ -416,7 +416,7 @@ impl OctopusRelay {
             staked_balance: appchain_state.staked_balance.into(),
             subql_url: appchain_metadata.subql_url.clone(),
             fact_sets_len: appchain_state.facts.len().try_into().unwrap_or(0),
-            validator_sets_len: appchain_state.currently_valid_validators_nonce,
+            validator_sets_len: appchain_state.currently_valid_validators_nonce - 1,
         })
     }
 
