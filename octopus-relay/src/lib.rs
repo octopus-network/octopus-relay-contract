@@ -2,6 +2,7 @@ mod appchain;
 mod appchain_prover;
 mod bridge_token_manager;
 mod bridging;
+mod native_token_manager;
 mod pipeline;
 mod relayed_bridge_token;
 mod storage_key;
@@ -73,6 +74,8 @@ pub struct OctopusRelay {
     pub appchain_metadatas: UnorderedMap<AppchainId, LazyOption<AppchainMetadata>>,
     /// Collection of state data of all appchains
     pub appchain_states: UnorderedMap<AppchainId, LazyOption<AppchainState>>,
+    /// Collection of native token of all appchains
+    pub appchain_native_tokens: UnorderedMap<AppchainId, AccountId>,
 }
 
 #[ext_contract(ext_self)]
@@ -121,6 +124,7 @@ pub trait ExtContract {
         registration_only: Option<bool>,
     ) -> StorageBalance;
     fn storage_balance_of(&self, account_id: ValidAccountId) -> Option<StorageBalance>;
+    fn mint(&self, account_id: AccountId, amount: U128);
 }
 
 impl Default for OctopusRelay {
@@ -156,6 +160,9 @@ impl OctopusRelay {
             bridge_tokens: UnorderedMap::new(StorageKey::BridgeTokens.into_bytes()),
             appchain_metadatas: UnorderedMap::new(StorageKey::AppchainMetadatas.into_bytes()),
             appchain_states: UnorderedMap::new(StorageKey::AppchainStates.into_bytes()),
+            appchain_native_tokens: UnorderedMap::new(
+                StorageKey::AppchainNativeTokens.into_bytes(),
+            ),
         }
     }
 
