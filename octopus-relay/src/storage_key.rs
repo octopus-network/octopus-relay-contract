@@ -36,6 +36,7 @@ pub enum StorageKey {
     RelayedBridgeTokenPermissions {
         token_id: AccountId,
     },
+    AppchainNativeTokens,
 }
 
 impl StorageKey {
@@ -85,6 +86,7 @@ impl StorageKey {
             StorageKey::RelayedBridgeTokenPermissions { token_id } => {
                 format!("rt{}ps", token_id)
             }
+            StorageKey::AppchainNativeTokens => "ant".to_string(),
         }
     }
     pub fn into_bytes(&self) -> Vec<u8> {

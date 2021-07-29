@@ -138,3 +138,21 @@ near view $RELAY_CONTRACT_ID get_facts '{"appchain_id": "testchain", "start": 0,
 # unlock token
 near call $RELAY_CONTRACT_ID unlock_token '{"appchain_id": "testchain", "token_id": "'$BRIDGE_TOKEN_CONTRACT_ID'", "sender": "sender", "receiver_id": "test-stable.testnet", "amount": "5000000"}' --accountId $SIGNER --gas 300000000000000 --amount 0.1
 ```
+
+Deploy native token for appchain before run these commands.
+
+```bash
+export RELAY_CONTRACT_ID=native_token_account
+
+# Storage deposit
+near call $APPCHAIN_NATIVE_TOKEN storage_deposit  '{"account_id": "'$RELAY_CONTRACT_ID'"}' --accountId $SIGNER --amount 0.1
+
+# register appchain native token
+near call $RELAY_CONTRACT_ID register_native_token '{"appchain_id": "testchain", "token_id": "'$APPCHAIN_NATIVE_TOKEN'"}' --accountId $RELAY_CONTRACT_ID --gas 300000000000000
+
+# get_native_token
+near view $RELAY_CONTRACT_ID get_native_token '{"appchain_id": "testchain"}'
+
+# mint appchain native token
+near call $RELAY_CONTRACT_ID mint_token '{"appchain_id": "testchain", "receiver_id": "'$SIGNER'", "amount": "200000000000000000000000000"}' --accountId $SIGNER --gas 300000000000000 --amount 0.00125
+```

@@ -1,4 +1,5 @@
 use crate::bridge_token_manager::BridgeTokenManager;
+use crate::native_token_manager::NativeTokenManager;
 use crate::*;
 
 /// Trait for bridging tokens between token contracts and appchains
@@ -40,6 +41,7 @@ pub trait TokenBridging {
     ) -> Promise;
     /// Callback for result of unlock token action
     fn resolve_unlock_token(&mut self, token_id: AccountId, appchain_id: AppchainId, amount: U128);
+    fn mint_token(&mut self, appchain_id: AppchainId, receiver_id: AccountId, amount: U128);
 }
 
 #[near_bindgen]
@@ -213,5 +215,24 @@ impl TokenBridging for OctopusRelay {
             }
             PromiseResult::Failed => {}
         }
+    }
+
+    #[payable]
+    fn mint_token(&mut self, appchain_id: AppchainId, receiver_id: AccountId, amount: U128) {
+        let deposit: Balance = env::attached_deposit();
+        assert!(
+            deposit == 1250000000000000000000,
+            "Attached deposit should be 0.00125."
+        );
+        let native_token_id = self
+            .get_native_token(appchain_id)
+            .expect("Native token is not registered.");
+        ext_token::mint(
+            receiver_id,
+            amount,
+            &native_token_id,
+            deposit,
+            GAS_FOR_FT_TRANSFER_CALL,
+        );
     }
 }
