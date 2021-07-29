@@ -142,7 +142,7 @@ near call $RELAY_CONTRACT_ID unlock_token '{"appchain_id": "testchain", "token_i
 Deploy native token for appchain before run these commands.
 
 ```bash
-export RELAY_CONTRACT_ID=native_token_account
+export APPCHAIN_NATIVE_TOKEN=native_token_account
 
 # Storage deposit
 near call $APPCHAIN_NATIVE_TOKEN storage_deposit  '{"account_id": "'$RELAY_CONTRACT_ID'"}' --accountId $SIGNER --amount 0.1
