@@ -51,7 +51,7 @@ impl OldAppchainValidator {
                     amount: validator.amount,
                     block_height: validator.block_height,
                     delegators,
-                    note: new_note_of_validator.clone(),
+                    // note: new_note_of_validator.clone(),
                 };
                 if let Ok(new_data) = new_state.try_to_vec() {
                     assert!(
@@ -68,10 +68,10 @@ impl OldAppchainValidator {
 impl AppchainState {
     pub fn migrate_validator_state(&self, new_note_of_validator: &String) {
         self.validators.keys_as_vector().iter().for_each(|v| {
-            OldAppchainValidator::migrate_state(&self.id, &v, new_note_of_validator);
+            OldAppchainValidator::migrate_state(&self.appchain_id, &v, new_note_of_validator);
         });
         self.removed_validators.keys_as_vector().iter().for_each(|v| {
-            OldAppchainValidator::migrate_state(&self.id, &v, new_note_of_validator);
+            OldAppchainValidator::migrate_state(&self.appchain_id, &v, new_note_of_validator);
         });
     }
 }
@@ -97,7 +97,7 @@ impl OctopusRelay {
             .iter()
             .for_each(|s| {
                 let state = s.get().unwrap();
-                env::log(format!("Migrating state of appchain '{}'", state.id).as_bytes());
+                env::log(format!("Migrating state of appchain '{}'", state.appchain_id).as_bytes());
                 state.migrate_validator_state(&new_note_of_validator);
             });
 

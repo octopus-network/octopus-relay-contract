@@ -1,3 +1,6 @@
+use borsh::maybestd::string::{String, ToString};
+use borsh::maybestd::vec::Vec;
+
 use crate::{AppchainId, DelegatorId, ValidatorId};
 
 /// Storage keys for collections of sub-struct in main contract
