@@ -1,4 +1,5 @@
-use std::convert::TryInto;
+use sp_std::convert::TryInto;
+use sp_std::cmp;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, UnorderedMap, Vector};
@@ -428,7 +429,7 @@ impl AppchainState {
     pub fn get_facts(&self, start: &SeqNum, limit: &SeqNum) -> Vec<Fact> {
         let facts_len = self.facts.len().try_into().unwrap_or(0);
         assert!(facts_len.gt(start), "Invalid start index of facts.");
-        let end = std::cmp::min(start + limit, facts_len);
+        let end = cmp::min(start + limit, facts_len);
         (start.clone()..end)
             .map(|index| self.facts.get(index.into()).unwrap())
             .collect::<Vec<_>>()
