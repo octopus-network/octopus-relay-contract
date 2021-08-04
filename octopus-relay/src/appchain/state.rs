@@ -1,7 +1,5 @@
-use core::convert::TryInto;
-use core::cmp;
-use borsh::maybestd::vec::Vec;
-use borsh::maybestd::string::String;
+use sp_std::convert::TryInto;
+use sp_std::cmp;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, UnorderedMap, Vector};

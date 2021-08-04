@@ -1,7 +1,7 @@
 use near_sdk::log;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 
-// use sp_core::H256;
+use sp_core::H256;
 use sp_runtime::generic::{Digest, DigestItem, Header};
 use sp_runtime::traits::BlakeTwo256;
 use sp_runtime::traits::{Hash, Keccak256};

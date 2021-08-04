@@ -1,6 +1,6 @@
-// #![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 
-extern crate core;
+extern crate alloc;
 
 pub mod appchain;
 // mod appchain_prover;
@@ -8,17 +8,12 @@ pub mod bridge;
 pub mod bridging;
 pub mod pipeline;
 pub mod storage_key;
-pub mod storage_migration;
+// pub mod storage_migration;
 pub mod types;
 
-// use sp_core::H256;
-use core::convert::{From, TryInto};
-use core::cmp;
-use borsh::maybestd::vec::Vec;
-use borsh::maybestd::string::{String, ToString};
-use borsh::maybestd::borrow::ToOwned;
-use borsh::maybestd::*;
-
+use sp_core::H256;
+use sp_std::convert::{From, TryInto};
+use sp_std::cmp;
 
 use crate::storage_key::StorageKey;
 // To conserve gas, efficient serialization is achieved through Borsh (http://borsh.io/)
@@ -36,6 +31,7 @@ use near_sdk::{
     assert_self, env, ext_contract, log, near_bindgen, wee_alloc, AccountId, Balance, BlockHeight,
     Promise, PromiseOrValue, PromiseResult,
 };
+use alloc::string::String;
 
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
