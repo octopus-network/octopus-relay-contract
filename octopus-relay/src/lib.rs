@@ -1,7 +1,3 @@
-#![cfg_attr(not(feature = "std"), no_std)]
-
-extern crate alloc;
-
 pub mod appchain;
 // mod appchain_prover;
 pub mod bridge;
@@ -12,8 +8,8 @@ pub mod storage_key;
 pub mod types;
 
 use sp_core::H256;
-use sp_std::convert::{From, TryInto};
-use sp_std::cmp;
+
+use std::convert::{From, TryInto};
 
 use crate::storage_key::StorageKey;
 // To conserve gas, efficient serialization is achieved through Borsh (http://borsh.io/)
@@ -31,7 +27,6 @@ use near_sdk::{
     assert_self, env, ext_contract, log, near_bindgen, wee_alloc, AccountId, Balance, BlockHeight,
     Promise, PromiseOrValue, PromiseResult,
 };
-use alloc::string::String;
 
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
@@ -386,7 +381,7 @@ impl OctopusRelay {
     }
 
     pub fn get_appchains(&self, from_index: u32, limit: u32) -> Vec<Appchain> {
-        (from_index..cmp::min(from_index + limit, self.appchain_id_list.len() as u32))
+        (from_index..std::cmp::min(from_index + limit, self.appchain_id_list.len() as u32))
             .map(|index| {
                 let appchain_id = self.appchain_id_list.get(index as u64).unwrap();
                 self.get_appchain(appchain_id).unwrap()

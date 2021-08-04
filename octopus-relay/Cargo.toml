@@ -14,23 +14,13 @@ hex = "0.4.2"
 
 # https://docs.rs/getrandom/0.2.1/getrandom/#indirect-dependencies
 getrandom = { version = "0.2", features = ["js"] }
-sp-core = { default-features = false, version = "3.0.0" }
-sp-runtime = { default-features = false,  version = "3.0.0" }
+sp-core = "3.0.0"
+sp-runtime = "3.0.0"
 
 # TODO: move to beefy light client
-mmr-lib = { default-features = false, package = "ckb-merkle-mountain-range", version = "0.3.1" }
-pallet-mmr-primitives = { default-features = false, git = 'https://github.com/octopus-network/substrate.git', branch = 'polkadot-v0.9.5' }
-sp-std = { default-features = false, version = "3.0.0" }
-
-[features]
-default = ["std"]
-std = [
-    "sp-core/std",
-    "sp-runtime/std",
-    "sp-std/std",
-    "pallet-mmr-primitives/std",
-    "mmr-lib/std",
-]
+mmr-lib = { package = "ckb-merkle-mountain-range", version = "0.3.1" }
+pallet-mmr-primitives = { git = 'https://github.com/octopus-network/substrate.git', branch = 'polkadot-v0.9.5' }
+sp-std = "3.0.0"
 
 [dev-dependencies]
 sp-consensus-babe = "0.9.0"

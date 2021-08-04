@@ -5,7 +5,6 @@ use sp_core::H256;
 use sp_runtime::generic::{Digest, DigestItem, Header};
 use sp_runtime::traits::BlakeTwo256;
 use sp_runtime::traits::{Hash, Keccak256};
-use sp_std::marker;
 
 // TODO
 use pallet_mmr_primitives::{DataOrHash, FullLeaf, Proof};
@@ -14,7 +13,7 @@ use pallet_mmr_primitives::{DataOrHash, FullLeaf, Proof};
 pub type Node<H, L> = DataOrHash<H, L>;
 
 /// Default Merging & Hashing behavior for MMR.
-pub struct Hasher<H, L>(marker::PhantomData<(H, L)>);
+pub struct Hasher<H, L>(sp_std::marker::PhantomData<(H, L)>);
 
 impl<H: sp_runtime::traits::Hash, L: FullLeaf> mmr_lib::Merge for Hasher<H, L> {
 	type Item = Node<H, L>;
