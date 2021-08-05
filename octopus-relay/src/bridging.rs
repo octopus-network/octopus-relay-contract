@@ -63,12 +63,14 @@ pub trait TokenBridging {
     /// Callback for result of unlock token action
     fn resolve_unlock_token(&mut self, token_id: AccountId, appchain_id: AppchainId, amount: U128);
     fn mint_native_token(&mut self, appchain_id: AppchainId, receiver_id: AccountId, amount: U128);
-    /// Burn native token on near, then mint on appchain 
-    fn burn_native_token(
-        &mut self, 
-        appchain_id: AppchainId, 
-        receiver: AccountId, 
-        amount: u128
+    /// Burn native token on near, then mint on appchain
+    fn burn_native_token(&mut self, appchain_id: AppchainId, receiver: AccountId, amount: U128);
+    fn resolve_burn_native_token(
+        &mut self,
+        appchain_id: AppchainId,
+        sender_id: AccountId,
+        receiver: String,
+        amount: u128,
     );
     fn relay(
         &mut self,
@@ -293,7 +295,7 @@ impl TokenBridging for OctopusRelay {
     fn mint_native_token(&mut self, appchain_id: AppchainId, receiver_id: AccountId, amount: U128) {
         let deposit: Balance = env::attached_deposit();
         assert!(
-            deposit == 1250000000000000000000,
+            deposit == STORAGE_DEPOSIT_AMOUNT,
             "Attached deposit should be 0.00125."
         );
         let native_token_id = self
@@ -306,39 +308,6 @@ impl TokenBridging for OctopusRelay {
             deposit,
             GAS_FOR_FT_TRANSFER_CALL,
         );
-    }
-
-    #[payable]
-    fn burn_native_token(
-        &mut self, 
-        appchain_id: AppchainId, 
-        receiver: String,
-        amount: u128
-    ) {
-        let deposit: Balance = env::attached_deposit();
-        assert!(
-            deposit == 1250000000000000000000,
-            "Attached deposit should be 0.00125."
-        );
-        let native_token_id = self
-            .get_native_token(appchain_id.clone())
-            .expect("Native token is not registered.");
-
-        let sender_id = env::signer_account_id();
-        ext_token::burn(
-            sender_id.clone(),
-            U128::from(amount),
-            &native_token_id,
-            0,
-            GAS_FOR_FT_TRANSFER_CALL,
-        );
-
-        let mut appchain_state = self.get_appchain_state(&appchain_id);
-
-        // Try to create validators_history before lock_token.
-        appchain_state.create_validators_history(false);
-        appchain_state.burn_native_token(receiver, sender_id, amount);
-        self.set_appchain_state(&appchain_id, &appchain_state);
     }
 
     fn relay(
@@ -399,6 +368,57 @@ impl TokenBridging for OctopusRelay {
                     ));
                 }
             }
+        }
+    }
+
+    fn burn_native_token(&mut self, appchain_id: AppchainId, receiver: String, amount: U128) {
+        let deposit: Balance = env::attached_deposit();
+        assert!(
+            deposit == STORAGE_DEPOSIT_AMOUNT,
+            "Attached deposit should be 0.00125."
+        );
+        let native_token_id = self
+            .get_native_token(appchain_id.clone())
+            .expect("Native token is not registered.");
+
+        let sender_id = env::signer_account_id();
+        ext_token::burn(
+            sender_id.clone(),
+            amount,
+            &native_token_id,
+            0,
+            GAS_FOR_FT_TRANSFER_CALL,
+        )
+        .then(ext_self::resolve_burn_native_token(
+            appchain_id,
+            sender_id,
+            receiver,
+            amount.0,
+            &env::current_account_id(),
+            0,
+            SINGLE_CALL_GAS,
+        ));
+    }
+
+    fn resolve_burn_native_token(
+        &mut self,
+        appchain_id: AppchainId,
+        sender_id: AccountId,
+        receiver: String,
+        amount: u128,
+    ) {
+        assert_self();
+        match env::promise_result(0) {
+            PromiseResult::NotReady => unreachable!(),
+            PromiseResult::Successful(_) => {
+                let mut appchain_state = self.get_appchain_state(&appchain_id);
+
+                // Try to create validators_history before burn_native_token.
+                appchain_state.create_validators_history(false);
+                appchain_state.burn_native_token(receiver, sender_id, amount);
+                self.set_appchain_state(&appchain_id, &appchain_state);
+            }
+            PromiseResult::Failed => unreachable!(),
         }
     }
 }

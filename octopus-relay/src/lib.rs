@@ -129,6 +129,13 @@ pub trait ExtOctopusRelay {
         appchain_id: AppchainId,
         amount: U128,
     );
+    fn resolve_burn_native_token(
+        &mut self,
+        appchain_id: AppchainId,
+        sender_id: AccountId,
+        receiver: String,
+        amount: u128,
+    );
 }
 
 #[ext_contract(ext_token)]
