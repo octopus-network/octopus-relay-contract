@@ -52,6 +52,8 @@ pub struct AppchainState {
     pub downvote_balance: Balance,
     /// The cross-chain prover of the appchain
     pub prover: AppchainProver,
+    /// The cross-chain prover of the appchain
+    pub message_nonce: u64,
 }
 
 impl AppchainState {
@@ -80,6 +82,7 @@ impl AppchainState {
             upvote_balance: 0,
             downvote_balance: 0,
             prover: AppchainProver,
+            message_nonce: 0,
         }
     }
     /// Clear extra storage used by the appchain
@@ -395,6 +398,12 @@ impl AppchainState {
             })),
         ));
     }
+
+    /// Increase message_nonce, after every excecution
+    pub fn increase_message_nonce(&mut self) {
+        self.message_nonce += 1;
+    }
+
     /// Unlock some token on current appchain
     pub fn unlock_token(&mut self, token_id: AccountId, amount: u128) {
         let new_amount = self.total_locked_tokens.get(&token_id).unwrap_or(0) - amount;

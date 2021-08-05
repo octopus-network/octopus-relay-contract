@@ -136,3 +136,25 @@ pub struct StorageBalance {
     pub total: U128,
     pub available: U128,
 }
+
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct XTransferPayload {
+    pub token_id: AccountId,
+    pub sender: String,
+    pub receiver_id: ValidAccountId,
+    pub amount: U128,
+}
+
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub enum Excecution {
+    NewXTransferPayload(XTransferPayload),
+}
+
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct Message {
+    pub nonce: u64,
+    pub excecution: Excecution,
+}

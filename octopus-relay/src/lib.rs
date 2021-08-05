@@ -4,10 +4,12 @@ mod bridge_token_manager;
 mod bridging;
 mod native_token_manager;
 mod pipeline;
+mod proof_decoder;
 mod relayed_bridge_token;
 mod storage_key;
 // pub mod storage_migration;
 pub mod types;
+use crate::types::Message;
 
 use std::convert::{From, TryInto};
 
@@ -95,6 +97,20 @@ pub trait ExtOctopusRelay {
         &mut self,
         appchain_id: AppchainId,
         validator_id: ValidatorId,
+        amount: U128,
+    );
+    fn execute(
+        &mut self,
+        messages: Vec<Message>,
+        appchain_id: AppchainId,
+        remaining_deposit: Balance,
+    );
+    fn unlock_token(
+        &mut self,
+        appchain_id: AppchainId,
+        token_id: AccountId,
+        sender: String,
+        receiver_id: ValidAccountId,
         amount: U128,
     );
     fn resolve_unlock_token(&mut self, token_id: AccountId, appchain_id: AppchainId, amount: U128);
