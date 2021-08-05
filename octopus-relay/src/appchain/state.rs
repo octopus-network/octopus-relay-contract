@@ -10,7 +10,7 @@ use crate::types::{
     AppchainStatus, Delegator, Fact, LiteValidator, Locked, Validator, ValidatorSet,
 };
 use crate::{AppchainId, DelegatorId, SeqNum, ValidatorId};
-// use crate::appchain_prover::AppchainProver;
+use crate::appchain_prover::AppchainProver;
 
 const INVALID_DELEGATORS_DATA_OF_VALIDATOR: &'static str = "Invalid delegators data of validator";
 
@@ -79,7 +79,8 @@ pub struct AppchainState {
     pub upvote_balance: Balance,
     /// Total downvote balance of OCT token of the appchain
     pub downvote_balance: Balance,
-    // pub prover: AppchainProver,
+    /// The cross-chain prover of the appchain
+    pub prover: AppchainProver,
 }
 
 impl AppchainDelegator {
@@ -185,7 +186,7 @@ impl AppchainState {
             ),
             upvote_balance: 0,
             downvote_balance: 0,
-            // prover: AppchainProver,
+            prover: AppchainProver,
         }
     }
     /// Clear extra storage used by the appchain
@@ -271,8 +272,7 @@ impl AppchainState {
         self.status = AppchainStatus::Booting;
         self.validators_timestamp = env::block_timestamp();
         self.booting_timestamp = env::block_timestamp();
-        self.facts
-            .push(&Fact::UpdateValidatorSet(self.get_latest_validator_set()));
+        self.facts.push(&Fact::UpdateValidatorSet(self.get_latest_validator_set()));
     }
     /// Stake some OCT tokens to the appchain
     pub fn stake(&mut self, validator_id: &ValidatorId, amount: &Balance) -> bool {
