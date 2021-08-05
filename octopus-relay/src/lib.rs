@@ -141,6 +141,7 @@ pub trait ExtContract {
     ) -> StorageBalance;
     fn storage_balance_of(&self, account_id: ValidAccountId) -> Option<StorageBalance>;
     fn mint(&self, account_id: AccountId, amount: U128);
+    fn burn(&self, account_id: AccountId, amount: U128);
 }
 
 impl Default for OctopusRelay {

@@ -125,9 +125,20 @@ pub struct Locked {
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
+pub struct Burned {
+    pub seq_num: SeqNum,
+    pub sender_id: AccountId,
+    pub receiver: String,
+    pub amount: U128,
+}
+
+
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
+#[serde(crate = "near_sdk::serde")]
 pub enum Fact {
     UpdateValidatorSet(ValidatorSet),
     LockToken(Locked),
+    BurnNativeToken(Burned),
 }
 
 #[derive(Serialize, Deserialize)]

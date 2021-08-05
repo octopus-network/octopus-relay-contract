@@ -3,7 +3,7 @@ use near_sdk::collections::{LazyOption, Vector};
 use near_sdk::json_types::U128;
 use near_sdk::{AccountId, BlockHeight, Timestamp};
 
-use crate::types::{Fact, Locked, ValidatorSet};
+use crate::types::{Fact, Locked, Burned, ValidatorSet};
 use crate::SeqNum;
 
 use super::validator::AppchainValidator;
@@ -29,9 +29,21 @@ pub struct AppchainLockedToken {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
+pub struct AppchainBurnedNativeToken {
+    pub sequence_number: SeqNum,
+    pub sender_id: AccountId,
+    pub receiver: String,
+    pub amount: U128,
+    pub block_height: BlockHeight,
+    pub timestamp: Timestamp,
+    pub epoch_number: u32,
+}
+
+#[derive(BorshDeserialize, BorshSerialize)]
 pub enum AppchainFact {
     UpdateValidatorSet(AppchainValidatorSet),
     LockToken(AppchainLockedToken),
+    BurnNativeToken(AppchainBurnedNativeToken),
 }
 
 impl AppchainValidatorSet {
@@ -62,6 +74,18 @@ impl AppchainLockedToken {
     }
 }
 
+impl AppchainBurnedNativeToken {
+    ///
+    pub fn to_burned(&self) -> Burned {
+        Burned {
+            seq_num: self.sequence_number,
+            sender_id: self.sender_id.clone(),
+            receiver: self.receiver.clone(),
+            amount: self.amount,
+        }
+    }
+}
+
 impl AppchainFact {
     ///
     pub fn to_fact(&self) -> Fact {
@@ -71,6 +95,9 @@ impl AppchainFact {
             }
             AppchainFact::LockToken(appchain_locked_token) => {
                 Fact::LockToken(appchain_locked_token.to_locked())
+            }
+            AppchainFact::BurnNativeToken(appchain_burned_token) => {
+                Fact::BurnNativeToken(appchain_burned_token.to_burned())
             }
         }
     }

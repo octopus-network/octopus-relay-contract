@@ -10,7 +10,7 @@ use crate::types::{AppchainStatus, Fact, LiteValidator, ValidatorSet};
 use crate::{AppchainId, SeqNum, ValidatorId, VALIDATOR_SET_CYCLE};
 use crate::appchain_prover::AppchainProver;
 
-use super::fact::{AppchainFact, AppchainLockedToken, AppchainValidatorSet};
+use super::fact::{AppchainFact, AppchainLockedToken, AppchainBurnedNativeToken, AppchainValidatorSet};
 use super::validator::AppchainValidator;
 
 /// Appchain state of an appchain of Octopus Network
@@ -402,6 +402,35 @@ impl AppchainState {
     /// Increase message_nonce, after every excecution
     pub fn increase_message_nonce(&mut self) {
         self.message_nonce += 1;
+    }
+
+    pub fn burn_native_token(
+        &mut self,
+        receiver: String,
+        sender_id: AccountId,
+        amount: u128,
+    ) {
+        let next_sequence_number = self.facts.len().try_into().unwrap();
+        let epoch_number: u32 = ((env::block_timestamp() - self.booting_timestamp)
+            / VALIDATOR_SET_CYCLE)
+            .try_into()
+            .unwrap();
+        self.facts.push(&LazyOption::new(
+            StorageKey::AppchainFact {
+                appchain_id: self.appchain_id.clone(),
+                fact_index: next_sequence_number,
+            }
+            .into_bytes(),
+            Some(&AppchainFact::BurnNativeToken(AppchainBurnedNativeToken {
+                sequence_number: next_sequence_number,
+                sender_id,
+                receiver,
+                amount: U128::from(amount),
+                block_height: env::block_index(),
+                timestamp: env::block_timestamp(),
+                epoch_number,
+            })),
+        ));
     }
 
     /// Unlock some token on current appchain
