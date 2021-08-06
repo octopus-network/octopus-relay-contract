@@ -146,40 +146,8 @@ impl TokenBridging for OctopusRelay {
                 amount,
                 &env::current_account_id(),
                 NO_DEPOSIT,
-                env::prepaid_gas() - GAS_FOR_FT_TRANSFER_CALL,
+                env::prepaid_gas() - 6 * SIMPLE_CALL_GAS,
             ))
-    }
-
-    fn create_unlock_promise(
-        &mut self,
-        deposit: Balance,
-        receiver_id: ValidAccountId,
-        token_id: AccountId,
-        appchain_id: AppchainId,
-        amount: U128,
-        data: Vec<u8>,
-    ) -> Promise {
-        assert_self();
-        if let Ok(storage_balance) = near_sdk::serde_json::from_slice::<StorageBalance>(&data) {
-            if storage_balance.total.0 > 0 {
-                return ext_token::ft_transfer(
-                    receiver_id.clone().into(),
-                    amount,
-                    None,
-                    &token_id,
-                    1,
-                    GAS_FOR_FT_TRANSFER_CALL,
-                )
-                .then(Promise::new(env::signer_account_id()).transfer(deposit));
-            }
-        }
-        self.deposit_and_ft_transfer(
-            deposit,
-            receiver_id,
-            token_id.clone(),
-            appchain_id.clone(),
-            amount,
-        )
     }
 
     fn check_bridge_token_storage_deposit(
@@ -215,6 +183,38 @@ impl TokenBridging for OctopusRelay {
         }
     }
 
+    fn create_unlock_promise(
+        &mut self,
+        deposit: Balance,
+        receiver_id: ValidAccountId,
+        token_id: AccountId,
+        appchain_id: AppchainId,
+        amount: U128,
+        data: Vec<u8>,
+    ) -> Promise {
+        assert_self();
+        if let Ok(storage_balance) = near_sdk::serde_json::from_slice::<StorageBalance>(&data) {
+            if storage_balance.total.0 > 0 {
+                return ext_token::ft_transfer(
+                    receiver_id.clone().into(),
+                    amount,
+                    None,
+                    &token_id,
+                    1,
+                    FT_TRANSFER_GAS,
+                )
+                .then(Promise::new(env::signer_account_id()).transfer(deposit));
+            }
+        }
+        self.deposit_and_ft_transfer(
+            deposit,
+            receiver_id,
+            token_id.clone(),
+            appchain_id.clone(),
+            amount,
+        )
+    }
+
     fn deposit_and_ft_transfer(
         &mut self,
         deposit: Balance,
@@ -228,7 +228,7 @@ impl TokenBridging for OctopusRelay {
             None,
             &token_id,
             deposit,
-            GAS_FOR_FT_TRANSFER_CALL,
+            SIMPLE_CALL_GAS,
         )
         .then(ext_self::resolve_bridge_token_storage_deposit(
             deposit,
@@ -260,14 +260,7 @@ impl TokenBridging for OctopusRelay {
                     if refund > 0 {
                         Promise::new(signer).transfer(refund);
                     }
-                    ext_token::ft_transfer(
-                        receiver_id,
-                        amount,
-                        None,
-                        &token_id,
-                        1,
-                        GAS_FOR_FT_TRANSFER_CALL,
-                    )
+                    ext_token::ft_transfer(receiver_id, amount, None, &token_id, 1, FT_TRANSFER_GAS)
                 } else {
                     Promise::new(signer).transfer(deposit)
                 }
@@ -356,16 +349,16 @@ impl TokenBridging for OctopusRelay {
                 excecution.amount,
                 &env::current_account_id(),
                 STORAGE_DEPOSIT_AMOUNT,
-                env::prepaid_gas() - COMPLEX_CALL_GAS,
-            );
-            // .then(ext_self::execute(
-            //     next_messages,
-            //     appchain_id.clone(),
-            //     next_remaining_deposit,
-            //     &env::current_account_id(),
-            //     NO_DEPOSIT,
-            //     COMPLEX_CALL_GAS,
-            // ));
+                COMPLEX_CALL_GAS,
+            )
+            .then(ext_self::execute(
+                next_messages,
+                appchain_id.clone(),
+                next_remaining_deposit,
+                &env::current_account_id(),
+                NO_DEPOSIT,
+                COMPLEX_CALL_GAS + SIMPLE_CALL_GAS,
+            ));
         }
     }
 

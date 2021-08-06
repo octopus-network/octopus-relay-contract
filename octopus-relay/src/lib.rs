@@ -35,10 +35,12 @@ use relayed_bridge_token::RelayedBridgeToken;
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 const NO_DEPOSIT: Balance = 0;
-const GAS_FOR_FT_TRANSFER_CALL: u64 = 35_000_000_000_000;
-const SINGLE_CALL_GAS: u64 = 50_000_000_000_000;
-const COMPLEX_CALL_GAS: u64 = 70_000_000_000_000;
-const SIMPLE_CALL_GAS: u64 = 5_000_000_000_000;
+const T_GAS: u64 = 1_000_000_000_000;
+const FT_TRANSFER_GAS: u64 = 5 * T_GAS;
+const GAS_FOR_FT_TRANSFER_CALL: u64 = 35 * T_GAS;
+const SINGLE_CALL_GAS: u64 = 50 * T_GAS;
+const COMPLEX_CALL_GAS: u64 = 120 * T_GAS;
+const SIMPLE_CALL_GAS: u64 = 5 * T_GAS;
 const OCT_DECIMALS_BASE: Balance = 1000_000_000_000_000_000_000_000;
 
 const APPCHAIN_METADATA_NOT_FOUND: &'static str = "Appchain metadata not found";
