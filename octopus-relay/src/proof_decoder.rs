@@ -1,4 +1,4 @@
-use crate::types::{Excecution, Message};
+use crate::types::{Message, XTransferPayload};
 use crate::*;
 use codec::{Decode, Encode, Input};
 
@@ -32,7 +32,7 @@ impl ProofDecoder for OctopusRelay {
 		decoded_messages
 			.iter()
 			.map(|m| {
-				let payload_result: Result<Excecution, std::io::Error> =
+				let payload_result: Result<XTransferPayload, std::io::Error> =
 					BorshDeserialize::deserialize(&mut &m.payload[..]);
 				let excecution = payload_result.unwrap();
 				log!("in appchain payload {:?}", excecution);

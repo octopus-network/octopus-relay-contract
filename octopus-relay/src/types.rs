@@ -132,7 +132,6 @@ pub struct Burned {
     pub amount: U128,
 }
 
-
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub enum Fact {
@@ -159,13 +158,7 @@ pub struct XTransferPayload {
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
-pub enum Excecution {
-    NewXTransferPayload(XTransferPayload),
-}
-
-#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
-#[serde(crate = "near_sdk::serde")]
 pub struct Message {
     pub nonce: u64,
-    pub excecution: Excecution,
+    pub excecution: XTransferPayload,
 }

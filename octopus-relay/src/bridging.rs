@@ -1,7 +1,7 @@
 use crate::bridge_token_manager::BridgeTokenManager;
 use crate::native_token_manager::NativeTokenManager;
 use crate::proof_decoder::ProofDecoder;
-use crate::types::{Excecution, Message};
+use crate::types::{Message, XTransferPayload};
 use crate::*;
 
 const STORAGE_DEPOSIT_AMOUNT: Balance = 1250000000000000000000;
@@ -124,7 +124,6 @@ impl TokenBridging for OctopusRelay {
         let deposit: Balance = env::attached_deposit();
         let appchain_state = self.get_appchain_state(&appchain_id);
         let total_locked_amount = appchain_state.get_total_locked_amount_of(&token_id);
-
         assert!(
             total_locked_amount > 0,
             "You should lock token before unlock."
@@ -147,7 +146,7 @@ impl TokenBridging for OctopusRelay {
                 amount,
                 &env::current_account_id(),
                 NO_DEPOSIT,
-                env::prepaid_gas() - SINGLE_CALL_GAS,
+                env::prepaid_gas() - GAS_FOR_FT_TRANSFER_CALL,
             ))
     }
 
@@ -209,7 +208,7 @@ impl TokenBridging for OctopusRelay {
                     amount,
                     &env::current_account_id(),
                     NO_DEPOSIT,
-                    SINGLE_CALL_GAS,
+                    GAS_FOR_FT_TRANSFER_CALL,
                 ))
             }
             PromiseResult::Failed => unreachable!(),
@@ -340,34 +339,33 @@ impl TokenBridging for OctopusRelay {
         if messages.len() > 0 {
             let appchain_state = self.get_appchain_state(&appchain_id);
             let message = messages.get(0).unwrap();
-            assert_eq!(
-                message.nonce, appchain_state.message_nonce,
-                "nonce not correct"
-            );
+            // assert_eq!(
+            //     message.nonce, appchain_state.message_nonce,
+            //     "nonce not correct"
+            // );
+
+            // if unlock token
             let next_messages = (&messages[1..messages.len()]).to_vec();
             let next_remaining_deposit = remaining_deposit - STORAGE_DEPOSIT_AMOUNT;
-            match &message.excecution {
-                Excecution::NewXTransferPayload(unlock_evnt) => {
-                    ext_self::unlock_token(
-                        appchain_id.clone(),
-                        unlock_evnt.token_id.clone(),
-                        unlock_evnt.sender.clone(),
-                        unlock_evnt.receiver_id.clone(),
-                        unlock_evnt.amount,
-                        &env::current_account_id(),
-                        STORAGE_DEPOSIT_AMOUNT,
-                        env::prepaid_gas() - SINGLE_CALL_GAS,
-                    )
-                    .then(ext_self::execute(
-                        next_messages,
-                        appchain_id.clone(),
-                        next_remaining_deposit,
-                        &env::current_account_id(),
-                        NO_DEPOSIT,
-                        SINGLE_CALL_GAS,
-                    ));
-                }
-            }
+            let excecution = &message.excecution;
+            ext_self::unlock_token(
+                appchain_id.clone(),
+                excecution.token_id.clone(),
+                excecution.sender.clone(),
+                excecution.receiver_id.clone(),
+                excecution.amount,
+                &env::current_account_id(),
+                STORAGE_DEPOSIT_AMOUNT,
+                env::prepaid_gas() - COMPLEX_CALL_GAS,
+            );
+            // .then(ext_self::execute(
+            //     next_messages,
+            //     appchain_id.clone(),
+            //     next_remaining_deposit,
+            //     &env::current_account_id(),
+            //     NO_DEPOSIT,
+            //     COMPLEX_CALL_GAS,
+            // ));
         }
     }
 
