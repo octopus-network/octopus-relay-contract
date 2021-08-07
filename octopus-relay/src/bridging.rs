@@ -1,7 +1,7 @@
 use crate::bridge_token_manager::BridgeTokenManager;
 use crate::native_token_manager::NativeTokenManager;
 use crate::proof_decoder::ProofDecoder;
-use crate::types::{Message, XTransferPayload};
+use crate::types::{Message, MessagePayload};
 use crate::*;
 
 const STORAGE_DEPOSIT_AMOUNT: Balance = 1250000000000000000000;
@@ -332,26 +332,38 @@ impl TokenBridging for OctopusRelay {
         if messages.len() > 0 {
             let appchain_state = self.get_appchain_state(&appchain_id);
             let message = messages.get(0).unwrap();
-            // assert_eq!(
-            //     message.nonce, appchain_state.message_nonce,
-            //     "nonce not correct"
-            // );
-
-            // if unlock token
+            assert_eq!(
+                message.nonce, appchain_state.message_nonce,
+                "nonce not correct"
+            );
+            let execution_promise;
             let next_messages = (&messages[1..messages.len()]).to_vec();
             let next_remaining_deposit = remaining_deposit - STORAGE_DEPOSIT_AMOUNT;
-            let excecution = &message.excecution;
-            ext_self::unlock_token(
-                appchain_id.clone(),
-                excecution.token_id.clone(),
-                excecution.sender.clone(),
-                excecution.receiver_id.clone(),
-                excecution.amount,
-                &env::current_account_id(),
-                STORAGE_DEPOSIT_AMOUNT,
-                COMPLEX_CALL_GAS,
-            )
-            .then(ext_self::execute(
+            match &message.payload {
+                MessagePayload::BurnAsset(p) => {
+                    execution_promise = ext_self::unlock_token(
+                        appchain_id.clone(),
+                        p.token_id.clone(),
+                        p.sender.clone(),
+                        p.receiver_id.clone(),
+                        p.amount,
+                        &env::current_account_id(),
+                        STORAGE_DEPOSIT_AMOUNT,
+                        COMPLEX_CALL_GAS,
+                    );
+                }
+                MessagePayload::Lock(p) => {
+                    execution_promise = ext_self::mint_native_token(
+                        appchain_id.clone(),
+                        p.receiver_id.clone().into(),
+                        p.amount,
+                        &env::current_account_id(),
+                        STORAGE_DEPOSIT_AMOUNT,
+                        SINGLE_CALL_GAS,
+                    );
+                }
+            }
+            execution_promise.then(ext_self::execute(
                 next_messages,
                 appchain_id.clone(),
                 next_remaining_deposit,

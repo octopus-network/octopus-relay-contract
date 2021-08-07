@@ -1,4 +1,4 @@
-use crate::types::{Message, XTransferPayload};
+use crate::types::{BurnAssetPayload, LockPayload, Message, MessagePayload, PayloadType};
 use crate::*;
 use codec::{Decode, Encode, Input};
 
@@ -15,6 +15,7 @@ pub trait ProofDecoder {
 #[derive(Encode, Decode, Clone, Debug)]
 pub struct RawMessage {
 	nonce: u64,
+	payload_type: PayloadType,
 	payload: Vec<u8>,
 }
 
@@ -31,14 +32,26 @@ impl ProofDecoder for OctopusRelay {
 
 		decoded_messages
 			.iter()
-			.map(|m| {
-				let payload_result: Result<XTransferPayload, std::io::Error> =
-					BorshDeserialize::deserialize(&mut &m.payload[..]);
-				let excecution = payload_result.unwrap();
-				log!("in appchain payload {:?}", excecution);
-				Message {
-					nonce: m.nonce,
-					excecution,
+			.map(|m| match m.payload_type {
+				PayloadType::BurnAsset => {
+					let payload_result: Result<BurnAssetPayload, std::io::Error> =
+						BorshDeserialize::deserialize(&mut &m.payload[..]);
+					let payload = payload_result.unwrap();
+					log!("in appchain payload {:?}", payload);
+					Message {
+						nonce: m.nonce,
+						payload: MessagePayload::BurnAsset(payload),
+					}
+				}
+				PayloadType::Lock => {
+					let payload_result: Result<LockPayload, std::io::Error> =
+						BorshDeserialize::deserialize(&mut &m.payload[..]);
+					let payload = payload_result.unwrap();
+					log!("in appchain payload {:?}", payload);
+					Message {
+						nonce: m.nonce,
+						payload: MessagePayload::Lock(payload),
+					}
 				}
 			})
 			.collect()

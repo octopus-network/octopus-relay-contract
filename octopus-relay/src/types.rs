@@ -1,4 +1,5 @@
 use crate::*;
+use codec::{Decode, Encode, Input};
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
@@ -147,9 +148,18 @@ pub struct StorageBalance {
     pub available: U128,
 }
 
+#[derive(
+    Encode, Decode, Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug,
+)]
+#[serde(crate = "near_sdk::serde")]
+pub enum PayloadType {
+    Lock,
+    BurnAsset,
+}
+
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
-pub struct XTransferPayload {
+pub struct BurnAssetPayload {
     pub token_id: AccountId,
     pub sender: String,
     pub receiver_id: ValidAccountId,
@@ -158,7 +168,22 @@ pub struct XTransferPayload {
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
+pub struct LockPayload {
+    pub sender: String,
+    pub receiver_id: ValidAccountId,
+    pub amount: U128,
+}
+
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub enum MessagePayload {
+    BurnAsset(BurnAssetPayload),
+    Lock(LockPayload),
+}
+
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]
+#[serde(crate = "near_sdk::serde")]
 pub struct Message {
     pub nonce: u64,
-    pub excecution: XTransferPayload,
+    pub payload: MessagePayload,
 }
