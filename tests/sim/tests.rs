@@ -298,11 +298,11 @@ fn simulate_lock_token() {
     let fact1 = &locked_events1[1];
 
     match fact0 {
-        Fact::LockToken(fact0) => assert_eq!(fact0.amount, U128::from(to_decimals_amount(100, 12))),
+        Fact::LockAsset(fact0) => assert_eq!(fact0.amount, U128::from(to_decimals_amount(100, 12))),
         _ => (),
     }
     match fact1 {
-        Fact::LockToken(fact1) => assert_eq!(fact1.amount, U128::from(to_decimals_amount(160, 12))),
+        Fact::LockAsset(fact1) => assert_eq!(fact1.amount, U128::from(to_decimals_amount(160, 12))),
         _ => (),
     }
 }

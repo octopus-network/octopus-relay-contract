@@ -137,8 +137,8 @@ pub struct Burned {
 #[serde(crate = "near_sdk::serde")]
 pub enum Fact {
     UpdateValidatorSet(ValidatorSet),
-    LockToken(Locked),
-    BurnNativeToken(Burned),
+    LockAsset(Locked),
+    Burn(Burned),
 }
 
 #[derive(Serialize, Deserialize)]

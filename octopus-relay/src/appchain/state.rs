@@ -10,7 +10,7 @@ use crate::types::{AppchainStatus, Fact, LiteValidator, ValidatorSet};
 use crate::{AppchainId, SeqNum, ValidatorId, VALIDATOR_SET_CYCLE};
 use crate::appchain_prover::AppchainProver;
 
-use super::fact::{AppchainFact, AppchainLockedToken, AppchainBurnedNativeToken, AppchainValidatorSet};
+use super::fact::{AppchainFact, AppchainLockedAsset, AppchainBurnedNativeToken, AppchainValidatorSet};
 use super::validator::AppchainValidator;
 
 /// Appchain state of an appchain of Octopus Network
@@ -386,7 +386,7 @@ impl AppchainState {
                 fact_index: next_sequence_number,
             }
             .into_bytes(),
-            Some(&AppchainFact::LockToken(AppchainLockedToken {
+            Some(&AppchainFact::LockAsset(AppchainLockedAsset {
                 sequence_number: next_sequence_number,
                 token_id,
                 sender_id,
@@ -421,7 +421,7 @@ impl AppchainState {
                 fact_index: next_sequence_number,
             }
             .into_bytes(),
-            Some(&AppchainFact::BurnNativeToken(AppchainBurnedNativeToken {
+            Some(&AppchainFact::Burn(AppchainBurnedNativeToken {
                 sequence_number: next_sequence_number,
                 sender_id,
                 receiver,

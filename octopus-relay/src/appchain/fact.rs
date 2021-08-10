@@ -17,7 +17,7 @@ pub struct AppchainValidatorSet {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct AppchainLockedToken {
+pub struct AppchainLockedAsset {
     pub sequence_number: SeqNum,
     pub token_id: AccountId,
     pub sender_id: AccountId,
@@ -42,8 +42,8 @@ pub struct AppchainBurnedNativeToken {
 #[derive(BorshDeserialize, BorshSerialize)]
 pub enum AppchainFact {
     UpdateValidatorSet(AppchainValidatorSet),
-    LockToken(AppchainLockedToken),
-    BurnNativeToken(AppchainBurnedNativeToken),
+    LockAsset(AppchainLockedAsset),
+    Burn(AppchainBurnedNativeToken),
 }
 
 impl AppchainValidatorSet {
@@ -61,7 +61,7 @@ impl AppchainValidatorSet {
     }
 }
 
-impl AppchainLockedToken {
+impl AppchainLockedAsset {
     ///
     pub fn to_locked(&self) -> Locked {
         Locked {
@@ -93,11 +93,11 @@ impl AppchainFact {
             AppchainFact::UpdateValidatorSet(appchain_validator_set) => {
                 Fact::UpdateValidatorSet(appchain_validator_set.to_validator_set())
             }
-            AppchainFact::LockToken(appchain_locked_token) => {
-                Fact::LockToken(appchain_locked_token.to_locked())
+            AppchainFact::LockAsset(appchain_locked_token) => {
+                Fact::LockAsset(appchain_locked_token.to_locked())
             }
-            AppchainFact::BurnNativeToken(appchain_burned_token) => {
-                Fact::BurnNativeToken(appchain_burned_token.to_burned())
+            AppchainFact::Burn(appchain_burned_token) => {
+                Fact::Burn(appchain_burned_token.to_burned())
             }
         }
     }
