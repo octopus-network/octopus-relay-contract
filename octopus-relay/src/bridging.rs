@@ -62,6 +62,7 @@ pub trait TokenBridging {
     ) -> Promise;
     /// Callback for result of unlock token action
     fn resolve_unlock_token(&mut self, token_id: AccountId, appchain_id: AppchainId, amount: U128);
+    fn resolve_mint_native_token(&mut self, appchain_id: AppchainId);
     fn mint_native_token(&mut self, appchain_id: AppchainId, receiver_id: AccountId, amount: U128);
     /// Burn native token on near, then mint on appchain
     fn burn_native_token(&mut self, appchain_id: AppchainId, receiver: AccountId, amount: U128);
@@ -291,7 +292,7 @@ impl TokenBridging for OctopusRelay {
             "Attached deposit should be 0.00125."
         );
         let native_token_id = self
-            .get_native_token(appchain_id)
+            .get_native_token(appchain_id.clone())
             .expect("Native token is not registered.");
         ext_token::mint(
             receiver_id,
@@ -299,7 +300,26 @@ impl TokenBridging for OctopusRelay {
             &native_token_id,
             deposit,
             GAS_FOR_FT_TRANSFER_CALL,
-        );
+        )
+        .then(ext_self::resolve_mint_native_token(
+            appchain_id,
+            &native_token_id,
+            0,
+            GAS_FOR_FT_TRANSFER_CALL,
+        ));
+    }
+
+    fn resolve_mint_native_token(&mut self, appchain_id: AppchainId) {
+        assert_self();
+        match env::promise_result(0) {
+            PromiseResult::NotReady => unreachable!(),
+            PromiseResult::Successful(_) => {
+                let mut appchain_state = self.get_appchain_state(&appchain_id);
+                appchain_state.increase_message_nonce();
+                self.set_appchain_state(&appchain_id, &appchain_state);
+            }
+            PromiseResult::Failed => unreachable!(),
+        }
     }
 
     fn relay(
@@ -333,7 +353,8 @@ impl TokenBridging for OctopusRelay {
             let appchain_state = self.get_appchain_state(&appchain_id);
             let message = messages.get(0).unwrap();
             assert_eq!(
-                message.nonce, appchain_state.message_nonce,
+                message.nonce,
+                appchain_state.message_nonce + 1,
                 "nonce not correct"
             );
             let execution_promise;
@@ -359,7 +380,7 @@ impl TokenBridging for OctopusRelay {
                         p.amount,
                         &env::current_account_id(),
                         STORAGE_DEPOSIT_AMOUNT,
-                        SINGLE_CALL_GAS,
+                        SINGLE_CALL_GAS + GAS_FOR_FT_TRANSFER_CALL,
                     );
                 }
             }

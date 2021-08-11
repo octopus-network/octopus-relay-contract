@@ -117,6 +117,7 @@ pub trait ExtOctopusRelay {
     );
     fn mint_native_token(&mut self, appchain_id: AppchainId, receiver_id: AccountId, amount: U128);
     fn resolve_unlock_token(&mut self, token_id: AccountId, appchain_id: AppchainId, amount: U128);
+    fn resolve_mint_native_token(&mut self, appchain_id: AppchainId);
     fn resolve_bridge_token_storage_deposit(
         &mut self,
         deposit: u128,
