@@ -303,7 +303,7 @@ impl TokenBridging for OctopusRelay {
         )
         .then(ext_self::resolve_mint_native_token(
             appchain_id,
-            &native_token_id,
+            &env::current_account_id(),
             0,
             GAS_FOR_FT_TRANSFER_CALL,
         ));
@@ -352,11 +352,11 @@ impl TokenBridging for OctopusRelay {
         if messages.len() > 0 {
             let appchain_state = self.get_appchain_state(&appchain_id);
             let message = messages.get(0).unwrap();
-            assert_eq!(
-                message.nonce,
-                appchain_state.message_nonce + 1,
-                "nonce not correct"
-            );
+            // assert_eq!(
+            //     message.nonce,
+            //     appchain_state.message_nonce + 1,
+            //     "nonce not correct"
+            // );
             let execution_promise;
             let next_messages = (&messages[1..messages.len()]).to_vec();
             let next_remaining_deposit = remaining_deposit - STORAGE_DEPOSIT_AMOUNT;
@@ -380,7 +380,7 @@ impl TokenBridging for OctopusRelay {
                         p.amount,
                         &env::current_account_id(),
                         STORAGE_DEPOSIT_AMOUNT,
-                        SINGLE_CALL_GAS + GAS_FOR_FT_TRANSFER_CALL,
+                        2 * SINGLE_CALL_GAS,
                     );
                 }
             }
