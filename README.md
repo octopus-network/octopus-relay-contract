@@ -154,5 +154,5 @@ near call $RELAY_CONTRACT_ID register_native_token '{"appchain_id": "testchain",
 near view $RELAY_CONTRACT_ID get_native_token '{"appchain_id": "testchain"}'
 
 # mint appchain native token
-near call $RELAY_CONTRACT_ID mint_token '{"appchain_id": "testchain", "receiver_id": "'$SIGNER'", "amount": "200000000000000000000000000"}' --accountId $SIGNER --gas 300000000000000 --amount 0.00125
+near call $RELAY_CONTRACT_ID mint_native_token '{"appchain_id": "testchain", "receiver_id": "'$SIGNER'", "amount": "200000000000000000000000000"}' --accountId $SIGNER --gas 300000000000000 --amount 0.00125
 ```
