@@ -26,8 +26,8 @@ use near_sdk::collections::{LazyOption, UnorderedMap, Vector};
 use near_sdk::json_types::{ValidAccountId, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    assert_self, env, ext_contract, log, near_bindgen, wee_alloc, AccountId, Balance, BlockHeight,
-    Promise, PromiseOrValue, PromiseResult,
+    assert_one_yocto, assert_self, env, ext_contract, log, near_bindgen, wee_alloc, AccountId,
+    Balance, BlockHeight, Promise, PromiseOrValue, PromiseResult,
 };
 use relayed_bridge_token::RelayedBridgeToken;
 

@@ -395,7 +395,9 @@ impl TokenBridging for OctopusRelay {
         }
     }
 
+    #[payable]
     fn burn_native_token(&mut self, appchain_id: AppchainId, receiver: String, amount: U128) {
+        assert_one_yocto();
         let native_token_id = self
             .get_native_token(appchain_id.clone())
             .expect("Native token is not registered.");
@@ -405,7 +407,7 @@ impl TokenBridging for OctopusRelay {
             sender_id.clone(),
             amount,
             &native_token_id,
-            0,
+            1,
             GAS_FOR_FT_TRANSFER_CALL,
         )
         .then(ext_self::resolve_burn_native_token(
