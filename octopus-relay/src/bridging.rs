@@ -396,11 +396,6 @@ impl TokenBridging for OctopusRelay {
     }
 
     fn burn_native_token(&mut self, appchain_id: AppchainId, receiver: String, amount: U128) {
-        let deposit: Balance = env::attached_deposit();
-        assert!(
-            deposit == STORAGE_DEPOSIT_AMOUNT,
-            "Attached deposit should be 0.00125."
-        );
         let native_token_id = self
             .get_native_token(appchain_id.clone())
             .expect("Native token is not registered.");
