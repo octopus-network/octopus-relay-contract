@@ -378,6 +378,7 @@ impl OctopusRelay {
         github_release: String,
         commit_id: String,
         email: String,
+        rpc_endpoint: String,
     ) {
         let required_status_vec = vec![AppchainStatus::Booting];
         let appchain_status = self.get_appchain_state(&appchain_id).status;
@@ -400,6 +401,7 @@ impl OctopusRelay {
             github_release,
             commit_id,
             email,
+            rpc_endpoint,
         );
         self.set_appchain_metadata(&appchain_id, &appchain_metadata);
     }

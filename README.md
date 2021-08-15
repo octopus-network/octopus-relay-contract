@@ -103,7 +103,7 @@ near call $RELAY_CONTRACT_ID remove_appchain '{"appchain_id": "testchain"}' --ac
 near call $RELAY_CONTRACT_ID activate_appchain '{"appchain_id": "testchain", "boot_nodes": "[\"/ip4/3.113.45.140/tcp/30333/p2p/12D3KooWAxYKgdmTczLioD1jkzMyaDuV2Q5VHBsJxPr5zEmHr8nY\",   \"/ip4/18.179.183.182/tcp/30333/p2p/12D3KooWSmLVShww4w9PVW17cCAS5C1JnXBU4NbY7FcGGjMyUGiq\",   \"/ip4/54.168.14.201/tcp/30333/p2p/12D3KooWT2umkS7F8GzUTLrfUzVBJPKn6YwCcuv6LBFQ27UPoo2Y\",   \"/ip4/35.74.18.116/tcp/30333/p2p/12D3KooWHNf9JxUZKHoF7rrsmorv86gonXSb2ZU44CbMsnBNFSAJ\", ]", "rpc_endpoint": "wss://easydeal-dev.rpc.testnet.oct.network:9944", "chain_spec_url": "chain_spec_url", "chain_spec_hash": "chain_spec_hash", "chain_spec_raw_url": "chain_spec_raw_url", "chain_spec_raw_hash": "chain_spec_raw_hash"}' --accountId $RELAY_CONTRACT_ID --gas 300000000000000
 
 # Update appchain
-near call $RELAY_CONTRACT_ID update_appchain '{"appchain_id": "testchain", "website_url": "website_url", "github_address": "github_address", "github_release": "github_release", "commit_id": "commit_id", "email": "email"}' --accountId $SIGNER
+near call $RELAY_CONTRACT_ID update_appchain '{"appchain_id": "testchain", "website_url": "website_url", "github_address": "github_address", "github_release": "github_release", "commit_id": "commit_id", "email": "email", "rpc_endpoint": "rpc_endpoint"}' --accountId $SIGNER
 
 # Update subql_url
 near call $RELAY_CONTRACT_ID update_subql_url '{"appchain_id": "testchain", "subql_url": "subql_url"}' --accountId $RELAY_CONTRACT_ID

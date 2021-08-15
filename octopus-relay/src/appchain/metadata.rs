@@ -1,6 +1,6 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{AccountId, Balance, BlockHeight, env};
+use near_sdk::{env, AccountId, Balance, BlockHeight};
 
 use crate::AppchainId;
 
@@ -81,6 +81,7 @@ impl AppchainMetadata {
         github_release: String,
         commit_id: String,
         email: String,
+        rpc_endpoint: String,
     ) {
         self.website_url.clear();
         self.website_url.push_str(website_url.as_str());
@@ -92,6 +93,8 @@ impl AppchainMetadata {
         self.commit_id.push_str(commit_id.as_str());
         self.email.clear();
         self.email.push_str(email.as_str());
+        self.rpc_endpoint.clear();
+        self.rpc_endpoint.push_str(rpc_endpoint.as_str());
     }
     /// Update booting info of metadata content of current appchain
     pub fn update_booting_info(
@@ -112,9 +115,11 @@ impl AppchainMetadata {
         self.chain_spec_hash.clear();
         self.chain_spec_hash.push_str(chain_spec_hash.as_str());
         self.chain_spec_raw_url.clear();
-        self.chain_spec_raw_url.push_str(chain_spec_raw_url.as_str());
+        self.chain_spec_raw_url
+            .push_str(chain_spec_raw_url.as_str());
         self.chain_spec_raw_hash.clear();
-        self.chain_spec_raw_hash.push_str(chain_spec_raw_hash.as_str());
+        self.chain_spec_raw_hash
+            .push_str(chain_spec_raw_hash.as_str());
     }
     /// Update subql info of metadata of current appchain
     pub fn update_subql(&mut self, subql: String) {
