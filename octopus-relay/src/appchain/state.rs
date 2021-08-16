@@ -5,12 +5,14 @@ use near_sdk::collections::{LazyOption, UnorderedMap, Vector};
 use near_sdk::json_types::U128;
 use near_sdk::{env, AccountId, Balance, Timestamp};
 
+use crate::appchain_prover::AppchainProver;
 use crate::storage_key::StorageKey;
 use crate::types::{AppchainStatus, Fact, LiteValidator, ValidatorSet};
 use crate::{AppchainId, SeqNum, ValidatorId, VALIDATOR_SET_CYCLE};
-use crate::appchain_prover::AppchainProver;
 
-use super::fact::{AppchainFact, AppchainLockedAsset, AppchainBurnedNativeToken, AppchainValidatorSet};
+use super::fact::{
+    AppchainBurnedNativeToken, AppchainFact, AppchainLockedAsset, AppchainValidatorSet,
+};
 use super::validator::AppchainValidator;
 
 /// Appchain state of an appchain of Octopus Network
@@ -404,12 +406,7 @@ impl AppchainState {
         self.message_nonce += 1;
     }
 
-    pub fn burn_native_token(
-        &mut self,
-        receiver: String,
-        sender_id: AccountId,
-        amount: u128,
-    ) {
+    pub fn burn_native_token(&mut self, receiver: String, sender_id: AccountId, amount: u128) {
         let next_sequence_number = self.facts.len().try_into().unwrap();
         let epoch_number: u32 = ((env::block_timestamp() - self.booting_timestamp)
             / VALIDATOR_SET_CYCLE)
@@ -458,7 +455,9 @@ impl AppchainState {
             .collect::<Vec<_>>();
         let next_validator_set_option = self.get_next_validator_set();
         if let Some(next_validator_set) = next_validator_set_option {
-            facts.push(Fact::UpdateValidatorSet(next_validator_set));
+            if next_validator_set.seq_num >= *start && next_validator_set.seq_num < end {
+                facts.push(Fact::UpdateValidatorSet(next_validator_set));
+            }
         }
         facts
     }
