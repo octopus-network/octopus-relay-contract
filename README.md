@@ -135,8 +135,6 @@ near call $BRIDGE_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_C
 # get_facts
 near view $RELAY_CONTRACT_ID get_facts '{"appchain_id": "testchain", "start": 0, "limit": 100}'
 
-# unlock token
-near call $RELAY_CONTRACT_ID unlock_token '{"appchain_id": "testchain", "token_id": "'$BRIDGE_TOKEN_CONTRACT_ID'", "sender": "sender", "receiver_id": "test-stable.testnet", "amount": "5000000"}' --accountId $SIGNER --gas 300000000000000 --amount 0.1
 ```
 
 Deploy native token for appchain before run these commands.
@@ -153,6 +151,6 @@ near call $RELAY_CONTRACT_ID register_native_token '{"appchain_id": "testchain",
 # get_native_token
 near view $RELAY_CONTRACT_ID get_native_token '{"appchain_id": "testchain"}'
 
-# mint appchain native token
-near call $RELAY_CONTRACT_ID mint_native_token '{"appchain_id": "testchain", "receiver_id": "'$SIGNER'", "amount": "200000000000000000000000000"}' --accountId $SIGNER --gas 300000000000000 --amount 0.00125
+# is_message_used
+near view $RELAY_CONTRACT_ID is_message_used '{"appchain_id": "testchain", "nonce": 1}'
 ```

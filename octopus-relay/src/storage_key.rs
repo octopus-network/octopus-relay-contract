@@ -17,6 +17,7 @@ pub enum StorageKey {
         fact_index: u32,
     },
     AppchainTotalLockedTokens(AppchainId),
+    UsedMessage(AppchainId),
     AppchainValidator(AppchainId, ValidatorId),
     AppchainDelegators(AppchainId, ValidatorId),
     AppchainDelegator(AppchainId, ValidatorId, DelegatorId),
@@ -57,6 +58,7 @@ impl StorageKey {
                 format!("{}{:010}", appchain_id, fact_index)
             }
             StorageKey::AppchainTotalLockedTokens(appchain_id) => format!("{}t", appchain_id),
+            StorageKey::UsedMessage(appchain_id) => format!("{}%um", appchain_id),
             StorageKey::AppchainValidator(appchain_id, validator_id) => {
                 format!("{}{}", appchain_id, validator_id)
             }

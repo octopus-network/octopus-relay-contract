@@ -25,6 +25,7 @@ pub trait TokenBridging {
         sender: String,
         receiver_id: ValidAccountId,
         amount: U128,
+        message_nonce: u64,
     ) -> Promise;
     /// TODO! add comment for this function
     fn check_bridge_token_storage_deposit(
@@ -34,6 +35,7 @@ pub trait TokenBridging {
         token_id: AccountId,
         appchain_id: AppchainId,
         amount: U128,
+        message_nonce: u64,
     ) -> Promise;
     fn create_unlock_promise(
         &mut self,
@@ -61,9 +63,21 @@ pub trait TokenBridging {
         token_id: AccountId,
     ) -> Promise;
     /// Callback for result of unlock token action
-    fn resolve_unlock_token(&mut self, token_id: AccountId, appchain_id: AppchainId, amount: U128);
-    fn resolve_mint_native_token(&mut self, appchain_id: AppchainId);
-    fn mint_native_token(&mut self, appchain_id: AppchainId, receiver_id: AccountId, amount: U128);
+    fn resolve_unlock_token(
+        &mut self,
+        token_id: AccountId,
+        appchain_id: AppchainId,
+        amount: U128,
+        message_nonce: u64,
+    );
+    fn resolve_mint_native_token(&mut self, appchain_id: AppchainId, message_nonce: u64);
+    fn mint_native_token(
+        &mut self,
+        appchain_id: AppchainId,
+        receiver_id: AccountId,
+        amount: U128,
+        message_nonce: u64,
+    );
     /// Burn native token on near, then mint on appchain
     fn burn_native_token(&mut self, appchain_id: AppchainId, receiver: AccountId, amount: U128);
     fn resolve_burn_native_token(
@@ -120,6 +134,7 @@ impl TokenBridging for OctopusRelay {
         sender: String,
         receiver_id: ValidAccountId,
         amount: U128,
+        message_nonce: u64,
     ) -> Promise {
         assert_self();
         let deposit: Balance = env::attached_deposit();
@@ -145,6 +160,7 @@ impl TokenBridging for OctopusRelay {
                 token_id,
                 appchain_id,
                 amount,
+                message_nonce,
                 &env::current_account_id(),
                 NO_DEPOSIT,
                 env::prepaid_gas() - 6 * SIMPLE_CALL_GAS,
@@ -158,6 +174,7 @@ impl TokenBridging for OctopusRelay {
         token_id: AccountId,
         appchain_id: AppchainId,
         amount: U128,
+        message_nonce: u64,
     ) -> Promise {
         assert_self();
         match env::promise_result(0) {
@@ -175,6 +192,7 @@ impl TokenBridging for OctopusRelay {
                     token_id,
                     appchain_id.clone(),
                     amount,
+                    message_nonce,
                     &env::current_account_id(),
                     NO_DEPOSIT,
                     GAS_FOR_FT_TRANSFER_CALL,
@@ -270,14 +288,20 @@ impl TokenBridging for OctopusRelay {
         }
     }
 
-    fn resolve_unlock_token(&mut self, token_id: AccountId, appchain_id: AppchainId, amount: U128) {
+    fn resolve_unlock_token(
+        &mut self,
+        token_id: AccountId,
+        appchain_id: AppchainId,
+        amount: U128,
+        message_nonce: u64,
+    ) {
         assert_self();
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {
                 let mut appchain_state = self.get_appchain_state(&appchain_id);
                 appchain_state.unlock_token(token_id, amount.0);
-                appchain_state.increase_message_nonce();
+                appchain_state.message_set_used(message_nonce);
                 self.set_appchain_state(&appchain_id, &appchain_state);
             }
             PromiseResult::Failed => unreachable!(),
@@ -285,7 +309,13 @@ impl TokenBridging for OctopusRelay {
     }
 
     #[payable]
-    fn mint_native_token(&mut self, appchain_id: AppchainId, receiver_id: AccountId, amount: U128) {
+    fn mint_native_token(
+        &mut self,
+        appchain_id: AppchainId,
+        receiver_id: AccountId,
+        amount: U128,
+        message_nonce: u64,
+    ) {
         let deposit: Balance = env::attached_deposit();
         assert!(
             deposit == STORAGE_DEPOSIT_AMOUNT,
@@ -303,19 +333,20 @@ impl TokenBridging for OctopusRelay {
         )
         .then(ext_self::resolve_mint_native_token(
             appchain_id,
+            message_nonce,
             &env::current_account_id(),
             0,
             GAS_FOR_FT_TRANSFER_CALL,
         ));
     }
 
-    fn resolve_mint_native_token(&mut self, appchain_id: AppchainId) {
+    fn resolve_mint_native_token(&mut self, appchain_id: AppchainId, message_nonce: u64) {
         assert_self();
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {
                 let mut appchain_state = self.get_appchain_state(&appchain_id);
-                appchain_state.increase_message_nonce();
+                appchain_state.message_set_used(message_nonce);
                 self.set_appchain_state(&appchain_id, &appchain_state);
             }
             PromiseResult::Failed => unreachable!(),
@@ -352,11 +383,11 @@ impl TokenBridging for OctopusRelay {
         if messages.len() > 0 {
             let appchain_state = self.get_appchain_state(&appchain_id);
             let message = messages.get(0).unwrap();
-            // assert_eq!(
-            //     message.nonce,
-            //     appchain_state.message_nonce + 1,
-            //     "nonce not correct"
-            // );
+            assert!(
+                !appchain_state.is_message_used(message.nonce),
+                "Message is used"
+            );
+
             let execution_promise;
             let next_messages = (&messages[1..messages.len()]).to_vec();
             let next_remaining_deposit = remaining_deposit - STORAGE_DEPOSIT_AMOUNT;
@@ -368,6 +399,7 @@ impl TokenBridging for OctopusRelay {
                         p.sender.clone(),
                         p.receiver_id.clone(),
                         p.amount,
+                        message.nonce,
                         &env::current_account_id(),
                         STORAGE_DEPOSIT_AMOUNT,
                         COMPLEX_CALL_GAS,
@@ -378,6 +410,7 @@ impl TokenBridging for OctopusRelay {
                         appchain_id.clone(),
                         p.receiver_id.clone().into(),
                         p.amount,
+                        message.nonce,
                         &env::current_account_id(),
                         STORAGE_DEPOSIT_AMOUNT,
                         2 * SINGLE_CALL_GAS,

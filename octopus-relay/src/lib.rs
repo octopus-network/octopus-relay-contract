@@ -114,10 +114,23 @@ pub trait ExtOctopusRelay {
         sender: String,
         receiver_id: ValidAccountId,
         amount: U128,
+        message_nonce: u64,
     );
-    fn mint_native_token(&mut self, appchain_id: AppchainId, receiver_id: AccountId, amount: U128);
-    fn resolve_unlock_token(&mut self, token_id: AccountId, appchain_id: AppchainId, amount: U128);
-    fn resolve_mint_native_token(&mut self, appchain_id: AppchainId);
+    fn mint_native_token(
+        &mut self,
+        appchain_id: AppchainId,
+        receiver_id: AccountId,
+        amount: U128,
+        message_nonce: u64,
+    );
+    fn resolve_unlock_token(
+        &mut self,
+        token_id: AccountId,
+        appchain_id: AppchainId,
+        amount: U128,
+        message_nonce: u64,
+    );
+    fn resolve_mint_native_token(&mut self, appchain_id: AppchainId, message_nonce: u64);
     fn resolve_bridge_token_storage_deposit(
         &mut self,
         deposit: u128,
@@ -132,6 +145,7 @@ pub trait ExtOctopusRelay {
         token_id: AccountId,
         appchain_id: AppchainId,
         amount: U128,
+        message_nonce: u64,
     );
     fn resolve_burn_native_token(
         &mut self,
@@ -704,6 +718,11 @@ impl OctopusRelay {
         let mut appchain_metadata = self.get_appchain_metadata(&appchain_id);
         appchain_metadata.update_subql(subql_url);
         self.set_appchain_metadata(&appchain_id, &appchain_metadata);
+    }
+
+    pub fn is_message_used(&self, appchain_id: AppchainId, nonce: u64) -> bool {
+        let appchain_state = self.get_appchain_state(&appchain_id);
+        appchain_state.is_message_used(nonce)
     }
 
     pub fn get_facts(&self, appchain_id: AppchainId, start: SeqNum, limit: SeqNum) -> Vec<Fact> {

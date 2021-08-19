@@ -3,7 +3,7 @@ use std::convert::TryInto;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, UnorderedMap, Vector};
 use near_sdk::json_types::U128;
-use near_sdk::{env, log, AccountId, Balance, Timestamp};
+use near_sdk::{env, AccountId, Balance, Timestamp};
 
 use crate::appchain_prover::AppchainProver;
 use crate::storage_key::StorageKey;
@@ -54,8 +54,8 @@ pub struct AppchainState {
     pub downvote_balance: Balance,
     /// The cross-chain prover of the appchain
     pub prover: AppchainProver,
-    /// The cross-chain prover of the appchain
-    pub message_nonce: u64,
+    /// used_messages of the appchain
+    pub used_messages: UnorderedMap<u64, bool>,
 }
 
 impl AppchainState {
@@ -84,7 +84,9 @@ impl AppchainState {
             upvote_balance: 0,
             downvote_balance: 0,
             prover: AppchainProver,
-            message_nonce: 0,
+            used_messages: UnorderedMap::new(
+                StorageKey::UsedMessage(appchain_id.clone()).into_bytes(),
+            ),
         }
     }
     /// Clear extra storage used by the appchain
@@ -401,9 +403,12 @@ impl AppchainState {
         ));
     }
 
-    /// Increase message_nonce, after every excecution
-    pub fn increase_message_nonce(&mut self) {
-        self.message_nonce += 1;
+    pub fn message_set_used(&mut self, nonce: u64) {
+        self.used_messages.insert(&nonce, &true);
+    }
+
+    pub fn is_message_used(&self, nonce: u64) -> bool {
+        self.used_messages.get(&nonce).is_some()
     }
 
     pub fn burn_native_token(&mut self, receiver: String, sender_id: AccountId, amount: u128) {
