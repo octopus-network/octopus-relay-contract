@@ -708,7 +708,15 @@ impl OctopusRelay {
 
     pub fn get_facts(&self, appchain_id: AppchainId, start: SeqNum, limit: SeqNum) -> Vec<Fact> {
         let appchain_state = self.get_appchain_state(&appchain_id);
-        appchain_state.get_facts(&start, &limit)
+        let facts = appchain_state.get_facts(&start, &limit);
+        let mut filtered_facts: Vec<Fact> = Vec::new();
+        for fact in facts {
+            filtered_facts.push(fact.clone());
+            if let Fact::UpdateValidatorSet(_) = fact {
+                return filtered_facts;
+            }
+        }
+        filtered_facts
     }
 }
 
