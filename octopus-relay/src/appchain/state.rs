@@ -3,7 +3,7 @@ use std::convert::TryInto;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, UnorderedMap, Vector};
 use near_sdk::json_types::U128;
-use near_sdk::{env, AccountId, Balance, Timestamp};
+use near_sdk::{env, log, AccountId, Balance, Timestamp};
 
 use crate::appchain_prover::AppchainProver;
 use crate::storage_key::StorageKey;
@@ -453,9 +453,11 @@ impl AppchainState {
                     .to_fact()
             })
             .collect::<Vec<_>>();
+
         let next_validator_set_option = self.get_next_validator_set();
+        let next_end = std::cmp::min(start + limit, facts_len + 1);
         if let Some(next_validator_set) = next_validator_set_option {
-            if next_validator_set.seq_num >= *start && next_validator_set.seq_num < end {
+            if next_validator_set.seq_num >= *start && next_validator_set.seq_num < next_end {
                 facts.push(Fact::UpdateValidatorSet(next_validator_set));
             }
         }
