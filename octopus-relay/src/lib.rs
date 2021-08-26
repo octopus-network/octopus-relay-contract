@@ -429,6 +429,17 @@ impl OctopusRelay {
             .collect()
     }
 
+    pub fn remove_appchain_id(&mut self, appchain_id: AppchainId) {
+        self.assert_owner();
+        let index = self
+            .appchain_id_list
+            .to_vec()
+            .iter()
+            .position(|id| *id == appchain_id)
+            .unwrap() as u64;
+        self.appchain_id_list.swap_remove(index);
+    }
+
     pub fn get_num_appchains(&self) -> u32 {
         self.appchain_metadatas.len() as u32
     }

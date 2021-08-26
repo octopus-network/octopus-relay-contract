@@ -1,8 +1,6 @@
 use crate::*;
-use crate::{AppchainId, OctopusRelay, types::AppchainStatus};
-use near_sdk::{
-    assert_self, env, near_bindgen, PromiseOrValue, PromiseResult,
-};
+use crate::{types::AppchainStatus, AppchainId, OctopusRelay};
+use near_sdk::{assert_self, env, near_bindgen, PromiseOrValue, PromiseResult};
 
 /// Trait for Appchain Pipeline functions
 pub trait AppchainPipeline {
@@ -87,6 +85,7 @@ impl AppchainPipeline for OctopusRelay {
                 self.appchain_metadatas.remove(&appchain_id);
                 self.get_appchain_state(&appchain_id).clear_extra_storage();
                 self.appchain_states.remove(&appchain_id);
+                self.remove_appchain_id(appchain_id.clone());
             }
             PromiseResult::Failed => {}
         }
