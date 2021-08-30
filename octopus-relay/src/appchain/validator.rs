@@ -15,15 +15,6 @@ pub struct ValidatorHistoryKeySet {
     pub seq_num: SeqNum,
     pub set_id: u32,
     // Use LookupMap instead of Vector to save gas.
-    pub history_keys: LookupMap<u32, ValidatorHistoryKey>,
-    pub history_keys_len: u32,
-}
-
-#[derive(BorshDeserialize, BorshSerialize)]
-pub struct ValidatorHistoryKeySetView {
-    pub seq_num: SeqNum,
-    pub set_id: u32,
-    // Use LookupMap instead of Vector to save gas.
     pub history_keys: Vec<ValidatorHistoryKey>,
 }
 

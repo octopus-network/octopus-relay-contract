@@ -15,8 +15,7 @@ use crate::VALIDATOR_SET_CYCLE;
 
 use super::fact::{AppchainBurnedNativeToken, AppchainLockedAsset, AppchainValidatorSet, RawFact};
 use super::validator::{
-    AppchainValidator, ValidatorHistory, ValidatorHistoryKeySet, ValidatorHistoryKeySetView,
-    ValidatorHistoryList,
+    AppchainValidator, ValidatorHistory, ValidatorHistoryKeySet, ValidatorHistoryList,
 };
 
 /// Appchain state of an appchain of Octopus Network
@@ -141,37 +140,16 @@ impl AppchainState {
         Option::None
     }
 
-    fn history_key_set_to_validator_set(&self, key_set: ValidatorHistoryKeySet) -> ValidatorSet {
-        let mut validators = Vec::new();
-        for index in 0..key_set.history_keys_len {
-            let (v_index, history_index) = key_set.history_keys.get(&index).unwrap();
-            let history_list = self
-                .validator_history_lists
-                .get(&v_index)
-                .unwrap()
-                .get()
-                .unwrap();
-            let validator = history_list
-                .get(history_index as u64)
-                .unwrap()
-                .get()
-                .unwrap()
-                .to_lite_validator();
-
-            validators.push(validator);
-        }
-        ValidatorSet {
-            seq_num: key_set.seq_num,
-            set_id: key_set.set_id,
-            validators,
-        }
-    }
-
-    fn history_key_set_view_to_validator_set(
+    fn history_key_set_to_validator_set(
         &self,
-        key_set_view: ValidatorHistoryKeySetView,
+        key_set_view: ValidatorHistoryKeySet,
     ) -> ValidatorSet {
+        log!("history_key_set_to_validator_set");
         let mut validators = Vec::new();
+        log!(
+            "key_set_view.history_keys.len(), {}",
+            key_set_view.history_keys.len()
+        );
         for index in 0..key_set_view.history_keys.len() {
             let (v_index, history_index) = key_set_view.history_keys.get(index).unwrap();
             let history_list = self
@@ -222,7 +200,7 @@ impl AppchainState {
 
     pub fn get_next_validator_set(&self) -> Option<ValidatorSet> {
         if self.should_next_validator_set() {
-            return Option::from(self.history_key_set_view_to_validator_set(
+            return Option::from(self.history_key_set_to_validator_set(
                 self.get_latest_validator_history_key_set_view(),
             ));
         }
@@ -243,7 +221,7 @@ impl AppchainState {
     }
 
     // Convert current validators array to struct `ValidatorSet`
-    fn get_latest_validator_history_key_set_view(&self) -> ValidatorHistoryKeySetView {
+    fn get_latest_validator_history_key_set_view(&self) -> ValidatorHistoryKeySet {
         let next_seq_num = self.raw_facts.len().try_into().unwrap();
         let mut validator_history_keys = Vec::new();
         let mut h_key_index: u32 = 0;
@@ -257,7 +235,7 @@ impl AppchainState {
             validator_history_keys.push((v_index, validator_history_list.len() as u32 - 1));
             h_key_index += 1;
         });
-        ValidatorHistoryKeySetView {
+        ValidatorHistoryKeySet {
             seq_num: next_seq_num,
             set_id: self.validators_nonce,
             history_keys: validator_history_keys,
@@ -377,7 +355,9 @@ impl AppchainState {
                 .insert(&validator_index, &validator_id);
         }
         let index_of_validator = self.validator_id_to_index.get(&validator_id).unwrap();
+        log!("create_index_for_validator {}", index_of_validator);
         self.validator_indexes.insert(&index_of_validator, &true);
+        self.validator_last_index += 1;
     }
 
     fn record_validator_history(&mut self, validator_id: ValidatorId) {
@@ -428,16 +408,11 @@ impl AppchainState {
     // Internal logic for creating validators history record
     pub fn create_validators_history(&mut self, for_boot: bool) {
         if self.should_next_validator_set() || for_boot {
+            log!("validator_indexes length {}", self.validator_indexes.len());
             if self.validator_indexes.len() > 0 {
                 let next_seq_num = self.raw_facts.len().try_into().unwrap();
-                let mut validator_history_keys = LookupMap::new(
-                    StorageKey::RawFactHistoryKeys {
-                        appchain_id: self.appchain_id.clone(),
-                        fact_index: next_seq_num,
-                    }
-                    .into_bytes(),
-                );
-                let mut h_key_index: u32 = 0;
+                let mut validator_history_keys = Vec::new();
+
                 self.validator_indexes.keys().for_each(|v_index| {
                     let validator_history_list = self
                         .validator_history_lists
@@ -445,11 +420,7 @@ impl AppchainState {
                         .unwrap()
                         .get()
                         .unwrap();
-                    validator_history_keys.insert(
-                        &h_key_index,
-                        &(v_index, validator_history_list.len() as u32 - 1),
-                    );
-                    h_key_index += 1;
+                    validator_history_keys.push((v_index, validator_history_list.len() as u32 - 1));
                 });
 
                 let raw_fact = LazyOption::new(
@@ -462,11 +433,11 @@ impl AppchainState {
                         seq_num: next_seq_num,
                         set_id: self.validators_nonce,
                         history_keys: validator_history_keys,
-                        history_keys_len: h_key_index,
                     })),
                 );
                 self.raw_facts.push(&raw_fact);
                 self.validators_nonce += 1;
+                log!("validators_nonce {}", self.validators_nonce);
                 self.validator_set_timestamp = self.validators_timestamp;
             }
         }

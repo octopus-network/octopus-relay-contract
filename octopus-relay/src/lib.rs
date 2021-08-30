@@ -607,10 +607,10 @@ impl OctopusRelay {
 
         let validators = self.get_validators(appchain_id.clone()).unwrap();
         for v in validators {
-            assert!(
-                v.account_id != account_id,
-                "Your account is already staked on the appchain!"
-            );
+            // assert!(
+            //     v.account_id != account_id,
+            //     "Your account is already staked on the appchain!"
+            // );
             assert!(
                 v.id != validator_id,
                 "This validator is already staked on the appchain!"
@@ -736,14 +736,15 @@ impl OctopusRelay {
         log!("get_facts");
         let appchain_state = self.get_appchain_state(&appchain_id);
         let facts = appchain_state.get_facts(&start, &limit);
-        let mut filtered_facts: Vec<Fact> = Vec::new();
-        for fact in facts {
-            filtered_facts.push(fact.clone());
-            if let Fact::UpdateValidatorSet(_) = fact {
-                return filtered_facts;
-            }
-        }
-        filtered_facts
+        // let mut filtered_facts: Vec<Fact> = Vec::new();
+        // for fact in facts {
+        //     filtered_facts.push(fact.clone());
+        //     if let Fact::UpdateValidatorSet(_) = fact {
+        //         return filtered_facts;
+        //     }
+        // }
+        // filtered_facts
+        facts
     }
 }
 
