@@ -1,6 +1,6 @@
 use near_sdk::AccountId;
 
-use crate::{AppchainId, DelegatorId, ValidatorId};
+use crate::types::{AppchainId, DelegatorId, HistoryIndex, ValidatorId};
 
 /// Storage keys for collections of sub-struct in main contract
 pub enum StorageKey {
@@ -12,24 +12,46 @@ pub enum StorageKey {
     AppchainValidators(AppchainId),
     RemovedAppchainValidators(AppchainId),
     AppchainFacts(AppchainId),
+    RawFacts(AppchainId),
+    ValidatorHistoryLists(AppchainId),
+    ValidatorIndexToId(AppchainId),
+    ValidatorIdToIndex(AppchainId),
+    ValidatorIndexes(AccountId),
     AppchainFact {
         appchain_id: AppchainId,
         fact_index: u32,
+    },
+    RawFact {
+        appchain_id: AppchainId,
+        fact_index: u32,
+    },
+    RawFactHistoryKeys {
+        appchain_id: AppchainId,
+        fact_index: u32,
+    },
+    RawFactHistoryKey {
+        appchain_id: AppchainId,
+        fact_index: u32,
+        validator_index: u32,
+    },
+    ValidatorHistoryList {
+        appchain_id: AppchainId,
+        validator_index: u32,
+    },
+    ValidatorHistoryListInner {
+        appchain_id: AppchainId,
+        validator_index: u32,
+    },
+    ValidatorHistory {
+        appchain_id: AppchainId,
+        validator_index: u32,
+        history_index: HistoryIndex,
     },
     AppchainTotalLockedTokens(AppchainId),
     UsedMessage(AppchainId),
     AppchainValidator(AppchainId, ValidatorId),
     AppchainDelegators(AppchainId, ValidatorId),
     AppchainDelegator(AppchainId, ValidatorId, DelegatorId),
-    AppchainFactValidators {
-        appchain_id: AppchainId,
-        fact_index: u32,
-    },
-    AppchainFactValidator {
-        appchain_id: AppchainId,
-        fact_index: u32,
-        validator_index: u32,
-    },
     BridgeTokens,
     RelayedBridgeToken {
         token_id: AccountId,
@@ -51,11 +73,60 @@ impl StorageKey {
             StorageKey::AppchainValidators(appchain_id) => format!("{}v", appchain_id),
             StorageKey::RemovedAppchainValidators(appchain_id) => format!("{}r", appchain_id),
             StorageKey::AppchainFacts(appchain_id) => format!("{}f", appchain_id),
+            StorageKey::RawFacts(appchain_id) => format!("{}%rfs", appchain_id),
+            StorageKey::ValidatorHistoryLists(appchain_id) => format!("{}%vhs", appchain_id),
+            StorageKey::ValidatorIndexToId(appchain_id) => format!("{}%vi", appchain_id),
+            StorageKey::ValidatorIdToIndex(appchain_id) => format!("{}%iv", appchain_id),
+            StorageKey::ValidatorIndexes(appchain_id) => format!("{}%vis", appchain_id),
             StorageKey::AppchainFact {
                 appchain_id,
                 fact_index,
             } => {
                 format!("{}{:010}", appchain_id, fact_index)
+            }
+            StorageKey::RawFact {
+                appchain_id,
+                fact_index,
+            } => {
+                format!("{}{:010}%rf", appchain_id, fact_index)
+            }
+            StorageKey::RawFactHistoryKeys {
+                appchain_id,
+                fact_index,
+            } => {
+                format!("{}{:010}%rfvs", appchain_id, fact_index)
+            }
+            StorageKey::RawFactHistoryKey {
+                appchain_id,
+                fact_index,
+                validator_index,
+            } => {
+                format!(
+                    "{}{:010}{:010}%rfv",
+                    appchain_id, fact_index, validator_index
+                )
+            }
+            StorageKey::ValidatorHistoryList {
+                appchain_id,
+                validator_index,
+            } => {
+                format!("{}{:010}%vhl", appchain_id, validator_index)
+            }
+            StorageKey::ValidatorHistoryListInner {
+                appchain_id,
+                validator_index,
+            } => {
+                format!("{}{:010}%vhi", appchain_id, validator_index)
+            }
+            StorageKey::ValidatorHistory {
+                appchain_id,
+                validator_index,
+                history_index,
+            } => {
+                format!(
+                    "{}{:010}{:010}%vh",
+                    appchain_id, validator_index, history_index
+                )
             }
             StorageKey::AppchainTotalLockedTokens(appchain_id) => format!("{}t", appchain_id),
             StorageKey::UsedMessage(appchain_id) => format!("{}%um", appchain_id),
@@ -67,19 +138,6 @@ impl StorageKey {
             }
             StorageKey::AppchainDelegator(appchain_id, validator_id, delegator_id) => {
                 format!("{}{}{}", appchain_id, validator_id, delegator_id)
-            }
-            StorageKey::AppchainFactValidators {
-                appchain_id,
-                fact_index,
-            } => {
-                format!("{}{:010}v", appchain_id, fact_index)
-            }
-            StorageKey::AppchainFactValidator {
-                appchain_id,
-                fact_index,
-                validator_index,
-            } => {
-                format!("{}{:010}{:010}", appchain_id, fact_index, validator_index)
             }
             StorageKey::BridgeTokens => "bts".to_string(),
             StorageKey::RelayedBridgeToken { token_id } => {

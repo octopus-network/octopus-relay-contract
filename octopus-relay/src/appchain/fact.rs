@@ -3,10 +3,16 @@ use near_sdk::collections::{LazyOption, Vector};
 use near_sdk::json_types::U128;
 use near_sdk::{AccountId, BlockHeight, Timestamp};
 
-use crate::types::{Fact, Locked, Burned, ValidatorSet};
-use crate::SeqNum;
+use crate::types::{Burned, Fact, Locked, SeqNum, ValidatorSet};
 
-use super::validator::AppchainValidator;
+use super::validator::{AppchainValidator, ValidatorHistoryKeySet};
+
+#[derive(BorshDeserialize, BorshSerialize)]
+pub enum RawFact {
+    ValidatorHistoryKeySet(ValidatorHistoryKeySet),
+    LockAsset(Locked),
+    Burn(Burned),
+}
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct AppchainValidatorSet {

@@ -1,9 +1,26 @@
 /// Appchain delegator of an appchain validator
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::{AccountId, Balance, BlockHeight};
 
-use crate::types::Delegator;
-use crate::DelegatorId;
+use crate::types::{Delegator, DelegatorHistoryKey, DelegatorId};
+
+#[derive(BorshDeserialize, BorshSerialize)]
+pub struct DelegatorKeySet {
+    pub set_id: u32,
+    // Use LookupMap instead of Vector to save gas.
+    pub delegator_history_keys: LookupMap<u32, DelegatorHistoryKey>,
+    pub delegator_history_keys_len: u32,
+}
+
+#[derive(BorshDeserialize, BorshSerialize)]
+pub struct DelegatorHistory {
+    pub delegator_id: DelegatorId,
+    pub account_id: AccountId,
+    pub amount: Balance,
+    pub block_height: BlockHeight,
+    pub set_id: u32,
+}
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct AppchainDelegator {

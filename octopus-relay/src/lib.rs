@@ -17,7 +17,8 @@ use crate::bridging::TokenBridging;
 use crate::storage_key::StorageKey;
 // To conserve gas, efficient serialization is achieved through Borsh (http://borsh.io/)
 use crate::types::{
-    Appchain, AppchainStatus, BridgeToken, Delegator, Fact, StorageBalance, Validator, ValidatorSet,
+    Appchain, AppchainId, AppchainStatus, BridgeToken, Delegator, DelegatorId, Fact, SeqNum,
+    StorageBalance, Validator, ValidatorId, ValidatorSet,
 };
 use appchain::metadata::AppchainMetadata;
 use appchain::state::AppchainState;
@@ -47,13 +48,8 @@ const APPCHAIN_METADATA_NOT_FOUND: &'static str = "Appchain metadata not found";
 const APPCHAIN_STATE_NOT_FOUND: &'static str = "Appchain state not found";
 
 // 20 minutes
-const VALIDATOR_SET_CYCLE: u64 = 20 * 60000000000;
+const VALIDATOR_SET_CYCLE: u64 = 1 * 60000000000;
 // const VALIDATOR_SET_CYCLE: u64 = 86400000000000;
-
-pub type AppchainId = String;
-pub type ValidatorId = String;
-pub type DelegatorId = String;
-pub type SeqNum = u32;
 
 // Structs in Rust are similar to other languages, and may include impl keyword as shown below
 // Note: the names of the structs are not important when calling the smart contract, but the function names are
@@ -477,7 +473,7 @@ impl OctopusRelay {
             block_height: appchain_metadata.block_height,
             staked_balance: appchain_state.staked_balance.into(),
             subql_url: appchain_metadata.subql_url.clone(),
-            fact_sets_len: appchain_state.facts.len().try_into().unwrap_or(0),
+            fact_sets_len: appchain_state.raw_facts.len().try_into().unwrap_or(0),
             validator_sets_len: appchain_state.currently_valid_validators_nonce - 1,
         })
     }
@@ -569,14 +565,14 @@ impl OctopusRelay {
             .currently_valid_validators_nonce
     }
 
-    pub fn get_validator_set(&self, appchain_id: AppchainId) -> Option<ValidatorSet> {
-        if let Some(state_option) = self.appchain_states.get(&appchain_id) {
-            if let Some(appchain_state) = state_option.get() {
-                return appchain_state.get_current_validator_set();
-            }
-        }
-        Option::None
-    }
+    // pub fn get_validator_set(&self, appchain_id: AppchainId) -> Option<ValidatorSet> {
+    //     if let Some(state_option) = self.appchain_states.get(&appchain_id) {
+    //         if let Some(appchain_state) = state_option.get() {
+    //             return appchain_state.get_current_validator_set();
+    //         }
+    //     }
+    //     Option::None
+    // }
 
     pub fn get_validator_set_by_set_id(
         &self,
@@ -584,7 +580,7 @@ impl OctopusRelay {
         set_id: u32,
     ) -> Option<ValidatorSet> {
         self.get_appchain_state(&appchain_id)
-            .get_validators_history_by_nonce(&set_id)
+            .get_validator_set_by_nonce(&set_id)
     }
 
     fn in_staking_period(&mut self, appchain_id: AppchainId) -> bool {
@@ -737,6 +733,7 @@ impl OctopusRelay {
     }
 
     pub fn get_facts(&self, appchain_id: AppchainId, start: SeqNum, limit: SeqNum) -> Vec<Fact> {
+        log!("get_facts");
         let appchain_state = self.get_appchain_state(&appchain_id);
         let facts = appchain_state.get_facts(&start, &limit);
         let mut filtered_facts: Vec<Fact> = Vec::new();

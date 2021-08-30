@@ -10,6 +10,19 @@ pub enum Vote {
 
 pub type HexAddress = [u8; 32];
 
+pub type AppchainId = String;
+pub type ValidatorId = String;
+pub type DelegatorId = String;
+pub type SeqNum = u32;
+pub type SetId = u32;
+
+pub type ValidatorIndex = u32;
+pub type DelegatorKey = u32;
+pub type HistoryIndex = u32;
+
+pub type ValidatorHistoryKey = (ValidatorIndex, HistoryIndex);
+pub type DelegatorHistoryKey = (DelegatorKey, HistoryIndex);
+
 /// Describes the status of appchains
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
