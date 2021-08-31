@@ -5,11 +5,11 @@ use near_sdk::{AccountId, BlockHeight, Timestamp};
 
 use crate::types::{Burned, Fact, Locked, SeqNum, ValidatorSet};
 
-use super::validator::{AppchainValidator, ValidatorHistoryKeySet};
+use super::validator::{AppchainValidator, ValidatorHistoryIndexSet};
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub enum RawFact {
-    ValidatorHistoryKeySet(ValidatorHistoryKeySet),
+    ValidatorHistoryIndexSet(ValidatorHistoryIndexSet),
     LockAsset(Locked),
     Burn(Burned),
 }

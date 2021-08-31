@@ -100,7 +100,6 @@ pub struct Appchain {
     pub staked_balance: U128,
     pub subql_url: String,
     pub fact_sets_len: SeqNum,
-    pub validator_sets_len: SeqNum,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug, PartialEq)]

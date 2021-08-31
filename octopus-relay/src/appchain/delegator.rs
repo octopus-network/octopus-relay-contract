@@ -9,8 +9,8 @@ use crate::types::{Delegator, DelegatorHistoryKey, DelegatorId};
 pub struct DelegatorKeySet {
     pub set_id: u32,
     // Use LookupMap instead of Vector to save gas.
-    pub delegator_history_keys: LookupMap<u32, DelegatorHistoryKey>,
-    pub delegator_history_keys_len: u32,
+    pub delegator_index_set: LookupMap<u32, DelegatorHistoryKey>,
+    pub delegator_index_set_len: u32,
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]

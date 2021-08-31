@@ -48,7 +48,8 @@ const APPCHAIN_METADATA_NOT_FOUND: &'static str = "Appchain metadata not found";
 const APPCHAIN_STATE_NOT_FOUND: &'static str = "Appchain state not found";
 
 // 20 minutes
-const VALIDATOR_SET_CYCLE: u64 = 1 * 60000000000;
+// const VALIDATOR_SET_CYCLE: u64 = 1 * 60000000000;
+const VALIDATOR_SET_CYCLE: u64 = 60000000000 / 12;
 // const VALIDATOR_SET_CYCLE: u64 = 86400000000000;
 
 // Structs in Rust are similar to other languages, and may include impl keyword as shown below
@@ -474,7 +475,6 @@ impl OctopusRelay {
             staked_balance: appchain_state.staked_balance.into(),
             subql_url: appchain_metadata.subql_url.clone(),
             fact_sets_len: appchain_state.raw_facts.len().try_into().unwrap_or(0),
-            validator_sets_len: appchain_state.currently_valid_validators_nonce - 1,
         })
     }
 
@@ -559,20 +559,14 @@ impl OctopusRelay {
         Option::None
     }
 
-    // Returns the appchain current validator_set len
-    pub fn get_curr_validator_set_len(&self, appchain_id: AppchainId) -> u32 {
-        self.get_appchain_state(&appchain_id)
-            .currently_valid_validators_nonce
+    pub fn get_validator_set(&self, appchain_id: AppchainId) -> Option<ValidatorSet> {
+        if let Some(state_option) = self.appchain_states.get(&appchain_id) {
+            if let Some(appchain_state) = state_option.get() {
+                return appchain_state.get_current_validator_set();
+            }
+        }
+        Option::None
     }
-
-    // pub fn get_validator_set(&self, appchain_id: AppchainId) -> Option<ValidatorSet> {
-    //     if let Some(state_option) = self.appchain_states.get(&appchain_id) {
-    //         if let Some(appchain_state) = state_option.get() {
-    //             return appchain_state.get_current_validator_set();
-    //         }
-    //     }
-    //     Option::None
-    // }
 
     pub fn get_validator_set_by_set_id(
         &self,
@@ -604,20 +598,8 @@ impl OctopusRelay {
             amount >= self.minimum_staking_amount,
             "Insufficient staking amount"
         );
-
-        let validators = self.get_validators(appchain_id.clone()).unwrap();
-        for v in validators {
-            // assert!(
-            //     v.account_id != account_id,
-            //     "Your account is already staked on the appchain!"
-            // );
-            assert!(
-                v.id != validator_id,
-                "This validator is already staked on the appchain!"
-            );
-        }
-
         let mut appchain_state = self.get_appchain_state(&appchain_id);
+        appchain_state.assert_validator_is_not_registered(&validator_id, &account_id);
         appchain_state.stake(&validator_id, &amount);
         self.total_staked_balance += amount;
         self.set_appchain_state(&appchain_id, &appchain_state);
@@ -733,18 +715,16 @@ impl OctopusRelay {
     }
 
     pub fn get_facts(&self, appchain_id: AppchainId, start: SeqNum, limit: SeqNum) -> Vec<Fact> {
-        log!("get_facts");
         let appchain_state = self.get_appchain_state(&appchain_id);
         let facts = appchain_state.get_facts(&start, &limit);
-        // let mut filtered_facts: Vec<Fact> = Vec::new();
-        // for fact in facts {
-        //     filtered_facts.push(fact.clone());
-        //     if let Fact::UpdateValidatorSet(_) = fact {
-        //         return filtered_facts;
-        //     }
-        // }
-        // filtered_facts
-        facts
+        let mut filtered_facts: Vec<Fact> = Vec::new();
+        for fact in facts {
+            filtered_facts.push(fact.clone());
+            if let Fact::UpdateValidatorSet(_) = fact {
+                return filtered_facts;
+            }
+        }
+        filtered_facts
     }
 }
 

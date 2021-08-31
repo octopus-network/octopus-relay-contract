@@ -4,28 +4,29 @@ use near_sdk::{AccountId, Balance, BlockHeight};
 
 use super::delegator::{AppchainDelegator, DelegatorHistory};
 use crate::types::{
-    DelegatorHistoryKey, DelegatorId, DelegatorKey, LiteValidator, SeqNum, Validator,
+    DelegatorHistoryKey, DelegatorId, DelegatorKey, LiteValidator, SeqNum, SetId, Validator,
     ValidatorHistoryKey, ValidatorId, ValidatorIndex, ValidatorSet,
 };
 
 const INVALID_DELEGATORS_DATA_OF_VALIDATOR: &'static str = "Invalid delegators data of validator";
 
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct ValidatorHistoryKeySet {
+pub struct ValidatorHistoryIndexSet {
     pub seq_num: SeqNum,
     pub set_id: u32,
     // Use LookupMap instead of Vector to save gas.
-    pub history_keys: Vec<ValidatorHistoryKey>,
+    pub index_set: Vec<ValidatorIndex>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct ValidatorHistory {
     pub id: ValidatorId,
+    pub set_id: SetId,
     pub account_id: AccountId,
     pub weight: Balance,
     pub block_height: BlockHeight,
-    pub delegator_history_keys: LookupMap<u32, DelegatorHistoryKey>,
-    pub delegator_history_keys_len: u32,
+    pub delegator_index_set: LookupMap<u32, DelegatorHistoryKey>,
+    pub delegator_index_set_len: u32,
 }
 
 impl ValidatorHistory {
@@ -81,15 +82,16 @@ impl AppchainValidator {
         }
     }
     /// Convert to struct `ValidatorHistory`
-    pub fn to_validator_history(&self) -> ValidatorHistory {
+    pub fn to_validator_history(&self, set_id: SetId) -> ValidatorHistory {
         ValidatorHistory {
             id: self.validator_id.clone(),
+            set_id,
             account_id: self.account_id.clone(),
             weight: self.amount.into(),
             block_height: self.block_height,
             // Todo
-            delegator_history_keys: LookupMap::new("_".to_string().into_bytes()),
-            delegator_history_keys_len: 0,
+            delegator_index_set: LookupMap::new("_".to_string().into_bytes()),
+            delegator_index_set_len: 0,
         }
     }
     /// Convert to struct `LiteValidator`

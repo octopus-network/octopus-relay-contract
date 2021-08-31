@@ -8,14 +8,14 @@ use near_sdk::{env, log, AccountId, Balance, Timestamp};
 use crate::appchain_prover::AppchainProver;
 use crate::storage_key::StorageKey;
 use crate::types::{
-    AppchainId, AppchainStatus, Burned, Fact, LiteValidator, Locked, SeqNum, ValidatorId,
-    ValidatorIndex, ValidatorSet,
+    AppchainId, AppchainStatus, Burned, Fact, HistoryIndex, LiteValidator, Locked, SeqNum,
+    ValidatorId, ValidatorIndex, ValidatorSet,
 };
 use crate::VALIDATOR_SET_CYCLE;
 
 use super::fact::{AppchainBurnedNativeToken, AppchainLockedAsset, AppchainValidatorSet, RawFact};
 use super::validator::{
-    AppchainValidator, ValidatorHistory, ValidatorHistoryKeySet, ValidatorHistoryList,
+    AppchainValidator, ValidatorHistory, ValidatorHistoryIndexSet, ValidatorHistoryList,
 };
 
 /// Appchain state of an appchain of Octopus Network
@@ -25,6 +25,7 @@ pub struct AppchainState {
     pub appchain_id: AppchainId,
     /// Validators collection of the appchain
     pub validators: UnorderedMap<ValidatorId, LazyOption<AppchainValidator>>,
+    pub account_map: LookupMap<AccountId, ValidatorId>,
     /// Nonce of validator set of the appchain.
     ///
     /// This nonce will be increased by 1 for each validator_set updated.
@@ -35,9 +36,6 @@ pub struct AppchainState {
     pub validator_set_timestamp: Timestamp,
     /// Timestamp when the appchain boots
     pub booting_timestamp: Timestamp,
-    /// Nonce of currently valid validators set of the appchain,
-    /// the nonce can be used to get a history validator set from `AppchainHistory`.
-    pub currently_valid_validators_nonce: u32,
     /// Collection of validators which were removed from the appchain
     ///
     /// Each remove action for validator will create a new key in this collection,
@@ -65,7 +63,7 @@ pub struct AppchainState {
     pub validator_last_index: ValidatorIndex,
     pub validator_id_to_index: LookupMap<ValidatorId, ValidatorIndex>,
     /// Current validators by index
-    pub validator_indexes: UnorderedMap<ValidatorIndex, bool>,
+    pub validator_indexes: UnorderedMap<ValidatorIndex, HistoryIndex>,
 }
 
 impl AppchainState {
@@ -76,9 +74,11 @@ impl AppchainState {
             validators: UnorderedMap::new(
                 StorageKey::AppchainValidators(appchain_id.clone()).into_bytes(),
             ),
+            account_map: LookupMap::new(
+                StorageKey::AppchainValidatorAccount(appchain_id.clone()).into_bytes(),
+            ),
             // set_id counts from 1
             validators_nonce: 1,
-            currently_valid_validators_nonce: 1,
             validators_timestamp: 0,
             validator_set_timestamp: 0,
             booting_timestamp: 0,
@@ -140,44 +140,54 @@ impl AppchainState {
         Option::None
     }
 
-    fn history_key_set_to_validator_set(
+    pub fn assert_validator_is_not_registered(
         &self,
-        key_set_view: ValidatorHistoryKeySet,
-    ) -> ValidatorSet {
-        log!("history_key_set_to_validator_set");
-        let mut validators = Vec::new();
-        log!(
-            "key_set_view.history_keys.len(), {}",
-            key_set_view.history_keys.len()
+        validator_id: &ValidatorId,
+        account_id: &AccountId,
+    ) {
+        assert!(
+            self.validators.get(validator_id).is_none(),
+            "This validator is already staked on the appchain!"
         );
-        for index in 0..key_set_view.history_keys.len() {
-            let (v_index, history_index) = key_set_view.history_keys.get(index).unwrap();
+        let account_exists = self.account_map.contains_key(account_id);
+        // assert!(
+        //     !account_exists,
+        //     "Your account is already staked on the appchain!"
+        // );
+    }
+
+    fn history_index_set_to_validator_set(
+        &self,
+        key_set: ValidatorHistoryIndexSet,
+    ) -> ValidatorSet {
+        let mut validators = Vec::new();
+        for index in 0..key_set.index_set.len() {
+            let v_index = key_set.index_set.get(index).unwrap();
             let history_list = self
                 .validator_history_lists
                 .get(&v_index)
                 .unwrap()
                 .get()
-                .unwrap();
-            let validator = history_list
-                .get(*history_index as u64)
                 .unwrap()
-                .get()
-                .unwrap()
-                .to_lite_validator();
-
+                .to_vec();
+            let v_history = history_list
+                .iter()
+                .rev()
+                .find(|h| h.get().unwrap().set_id <= key_set.set_id);
+            let validator = v_history.unwrap().get().unwrap().to_lite_validator();
             validators.push(validator);
         }
         ValidatorSet {
-            seq_num: key_set_view.seq_num,
-            set_id: key_set_view.set_id,
+            seq_num: key_set.seq_num,
+            set_id: key_set.set_id,
             validators,
         }
     }
 
     fn raw_fact_to_fact(&self, raw_fact: RawFact) -> Fact {
         match raw_fact {
-            RawFact::ValidatorHistoryKeySet(key_set) => {
-                Fact::UpdateValidatorSet(self.history_key_set_to_validator_set(key_set))
+            RawFact::ValidatorHistoryIndexSet(key_set) => {
+                Fact::UpdateValidatorSet(self.history_index_set_to_validator_set(key_set))
             }
             RawFact::LockAsset(locked) => Fact::LockAsset(locked),
             RawFact::Burn(burned) => Fact::Burn(burned),
@@ -200,8 +210,8 @@ impl AppchainState {
 
     pub fn get_next_validator_set(&self) -> Option<ValidatorSet> {
         if self.should_next_validator_set() {
-            return Option::from(self.history_key_set_to_validator_set(
-                self.get_latest_validator_history_key_set_view(),
+            return Option::from(self.history_index_set_to_validator_set(
+                self.get_latest_validator_history_index_set(),
             ));
         }
         None
@@ -221,60 +231,28 @@ impl AppchainState {
     }
 
     // Convert current validators array to struct `ValidatorSet`
-    fn get_latest_validator_history_key_set_view(&self) -> ValidatorHistoryKeySet {
+    fn get_latest_validator_history_index_set(&self) -> ValidatorHistoryIndexSet {
         let next_seq_num = self.raw_facts.len().try_into().unwrap();
-        let mut validator_history_keys = Vec::new();
-        let mut h_key_index: u32 = 0;
-        self.validator_indexes.keys().for_each(|v_index| {
-            let validator_history_list = self
-                .validator_history_lists
-                .get(&v_index)
-                .unwrap()
-                .get()
-                .unwrap();
-            validator_history_keys.push((v_index, validator_history_list.len() as u32 - 1));
-            h_key_index += 1;
-        });
-        ValidatorHistoryKeySet {
+        let validator_index_set = self.validator_indexes.keys().collect();
+        ValidatorHistoryIndexSet {
             seq_num: next_seq_num,
             set_id: self.validators_nonce,
-            history_keys: validator_history_keys,
+            index_set: validator_index_set,
         }
     }
 
     /// Get validator set of current epoch
     ///
     /// The return data is come from the facts of the appchain
-    // pub fn get_current_validator_set(&self) -> Option<ValidatorSet> {
-    //     if !self.status.eq(&AppchainStatus::Booting) {
-    //         return Option::None;
-    //     }
-    //     let current_epoch_number: u32 = ((env::block_timestamp() - self.booting_timestamp)
-    //         / VALIDATOR_SET_CYCLE)
-    //         .try_into()
-    //         .unwrap();
-    //     let mut current_validator_sets = self
-    //         .facts
-    //         .iter()
-    //         .filter(|f| match f.get().unwrap() {
-    //             RawFact::UpdateValidatorHistoryKeySet(key_set) => {
-    //                 validator_set.epoch_number <= current_epoch_number
-    //             }
-    //             _ => false,
-    //         })
-    //         .collect::<Vec<_>>();
-    //     if current_validator_sets.len() > 0 {
-    //         if let Some(fact) = current_validator_sets.pop() {
-    //             match fact.get().unwrap() {
-    //                 RawFact::UpdateValidatorSet(validator_set) => {
-    //                     return Option::from(validator_set.to_validator_set());
-    //                 }
-    //                 _ => (),
-    //             }
-    //         }
-    //     }
-    //     Option::None
-    // }
+    pub fn get_current_validator_set(&self) -> Option<ValidatorSet> {
+        if self.should_next_validator_set() {
+            self.get_next_validator_set()
+        } else {
+            assert!(self.validators_nonce > 1, "no validator_set yet");
+            self.get_validator_set_by_nonce(&(self.validators_nonce - 1))
+        }
+    }
+
     /// Boot the appchain
     pub fn boot(&mut self) {
         self.status = AppchainStatus::Booting;
@@ -339,6 +317,7 @@ impl AppchainState {
                         }),
                     ),
                 );
+                self.account_map.insert(account_id, validator_id);
             }
         }
         self.staked_balance += amount;
@@ -347,17 +326,13 @@ impl AppchainState {
     }
 
     fn create_index_for_validator(&mut self, validator_id: ValidatorId) {
-        if self.validator_id_to_index.get(&validator_id).is_none() {
+        if !self.validator_id_to_index.contains_key(&validator_id) {
             let validator_index = self.validator_last_index + 1;
             self.validator_id_to_index
                 .insert(&validator_id, &validator_index);
             self.validator_index_to_id
                 .insert(&validator_index, &validator_id);
         }
-        let index_of_validator = self.validator_id_to_index.get(&validator_id).unwrap();
-        log!("create_index_for_validator {}", index_of_validator);
-        self.validator_indexes.insert(&index_of_validator, &true);
-        self.validator_last_index += 1;
     }
 
     fn record_validator_history(&mut self, validator_id: ValidatorId) {
@@ -375,13 +350,17 @@ impl AppchainState {
         } else {
             validator_history_list = validator_history_list_option.unwrap().get().unwrap();
         }
+        let mut set_id = self.validators_nonce;
+        if self.should_next_validator_set() {
+            set_id += 1;
+        }
         let validator_history = self
             .validators
             .get(&validator_id)
             .unwrap()
             .get()
             .unwrap()
-            .to_validator_history();
+            .to_validator_history(set_id);
         let next_validator_history_index = validator_history_list.len().try_into().unwrap();
         validator_history_list.push(&LazyOption::new(
             StorageKey::ValidatorHistory {
@@ -411,33 +390,23 @@ impl AppchainState {
             log!("validator_indexes length {}", self.validator_indexes.len());
             if self.validator_indexes.len() > 0 {
                 let next_seq_num = self.raw_facts.len().try_into().unwrap();
-                let mut validator_history_keys = Vec::new();
-
-                self.validator_indexes.keys().for_each(|v_index| {
-                    let validator_history_list = self
-                        .validator_history_lists
-                        .get(&v_index)
-                        .unwrap()
-                        .get()
-                        .unwrap();
-                    validator_history_keys.push((v_index, validator_history_list.len() as u32 - 1));
-                });
-
+                let validator_index_set = self.validator_indexes.keys().collect();
                 let raw_fact = LazyOption::new(
                     StorageKey::RawFact {
                         appchain_id: self.appchain_id.clone(),
                         fact_index: next_seq_num,
                     }
                     .into_bytes(),
-                    Some(&RawFact::ValidatorHistoryKeySet(ValidatorHistoryKeySet {
-                        seq_num: next_seq_num,
-                        set_id: self.validators_nonce,
-                        history_keys: validator_history_keys,
-                    })),
+                    Some(&RawFact::ValidatorHistoryIndexSet(
+                        ValidatorHistoryIndexSet {
+                            seq_num: next_seq_num,
+                            set_id: self.validators_nonce,
+                            index_set: validator_index_set,
+                        },
+                    )),
                 );
                 self.raw_facts.push(&raw_fact);
                 self.validators_nonce += 1;
-                log!("validators_nonce {}", self.validators_nonce);
                 self.validator_set_timestamp = self.validators_timestamp;
             }
         }
@@ -463,6 +432,7 @@ impl AppchainState {
             let v_index = self.validator_id_to_index.get(&validator_id).unwrap();
             self.validator_indexes.remove(&v_index);
             self.validators.remove(&validator_id);
+            self.account_map.remove(&validator.account_id);
             removed_balance
         } else {
             0
@@ -474,14 +444,14 @@ impl AppchainState {
             .raw_facts
             .iter()
             .filter(|f| match f.get().unwrap() {
-                RawFact::ValidatorHistoryKeySet(key_set) => key_set.set_id.eq(validators_nonce),
+                RawFact::ValidatorHistoryIndexSet(key_set) => key_set.set_id.eq(validators_nonce),
                 _ => false,
             })
             .collect::<Vec<_>>();
         if validator_history_set_facts.len() > 0 {
             match validator_history_set_facts.get(0).unwrap().get().unwrap() {
-                RawFact::ValidatorHistoryKeySet(key_set) => {
-                    Option::from(self.history_key_set_to_validator_set(key_set))
+                RawFact::ValidatorHistoryIndexSet(key_set) => {
+                    Option::from(self.history_index_set_to_validator_set(key_set))
                 }
                 _ => Option::None,
             }
@@ -580,10 +550,10 @@ impl AppchainState {
             })
             .collect::<Vec<_>>();
 
-        let next_validator_set_option = self.get_next_validator_set();
         let next_end = std::cmp::min(start + limit, facts_len + 1);
-        if let Some(next_validator_set) = next_validator_set_option {
-            if next_validator_set.seq_num >= *start && next_validator_set.seq_num < next_end {
+        if self.should_next_validator_set() && (facts.len() as u32) < next_end - start {
+            let next_validator_set_option = self.get_next_validator_set();
+            if let Some(next_validator_set) = next_validator_set_option {
                 facts.push(Fact::UpdateValidatorSet(next_validator_set));
             }
         }
