@@ -12,16 +12,11 @@ pub enum StorageKey {
     AppchainValidators(AppchainId),
     AppchainValidatorAccount(AccountId),
     RemovedAppchainValidators(AppchainId),
-    AppchainFacts(AppchainId),
     RawFacts(AppchainId),
     ValidatorHistoryLists(AppchainId),
     ValidatorIndexToId(AppchainId),
     ValidatorIdToIndex(AppchainId),
     ValidatorIndexes(AccountId),
-    AppchainFact {
-        appchain_id: AppchainId,
-        fact_index: u32,
-    },
     RawFact {
         appchain_id: AppchainId,
         fact_index: u32,
@@ -74,18 +69,11 @@ impl StorageKey {
             StorageKey::AppchainValidators(appchain_id) => format!("{}v", appchain_id),
             StorageKey::AppchainValidatorAccount(appchain_id) => format!("{}%va", appchain_id),
             StorageKey::RemovedAppchainValidators(appchain_id) => format!("{}r", appchain_id),
-            StorageKey::AppchainFacts(appchain_id) => format!("{}f", appchain_id),
             StorageKey::RawFacts(appchain_id) => format!("{}%rfs", appchain_id),
             StorageKey::ValidatorHistoryLists(appchain_id) => format!("{}%vhs", appchain_id),
             StorageKey::ValidatorIndexToId(appchain_id) => format!("{}%vi", appchain_id),
             StorageKey::ValidatorIdToIndex(appchain_id) => format!("{}%iv", appchain_id),
             StorageKey::ValidatorIndexes(appchain_id) => format!("{}%vis", appchain_id),
-            StorageKey::AppchainFact {
-                appchain_id,
-                fact_index,
-            } => {
-                format!("{}{:010}", appchain_id, fact_index)
-            }
             StorageKey::RawFact {
                 appchain_id,
                 fact_index,

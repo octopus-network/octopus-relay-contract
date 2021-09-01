@@ -15,14 +15,6 @@ pub enum RawFact {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct AppchainValidatorSet {
-    pub sequence_number: SeqNum,
-    pub set_id: u32,
-    pub validators: Vector<LazyOption<AppchainValidator>>,
-    pub epoch_number: u32,
-}
-
-#[derive(BorshDeserialize, BorshSerialize)]
 pub struct AppchainLockedAsset {
     pub sequence_number: SeqNum,
     pub token_id: AccountId,
@@ -43,28 +35,6 @@ pub struct AppchainBurnedNativeToken {
     pub block_height: BlockHeight,
     pub timestamp: Timestamp,
     pub epoch_number: u32,
-}
-
-#[derive(BorshDeserialize, BorshSerialize)]
-pub enum AppchainFact {
-    UpdateValidatorSet(AppchainValidatorSet),
-    LockAsset(AppchainLockedAsset),
-    Burn(AppchainBurnedNativeToken),
-}
-
-impl AppchainValidatorSet {
-    ///
-    pub fn to_validator_set(&self) -> ValidatorSet {
-        ValidatorSet {
-            seq_num: self.sequence_number,
-            set_id: self.set_id,
-            validators: self
-                .validators
-                .iter()
-                .map(|v| v.get().unwrap().to_lite_validator())
-                .collect::<Vec<_>>(),
-        }
-    }
 }
 
 impl AppchainLockedAsset {
@@ -88,36 +58,6 @@ impl AppchainBurnedNativeToken {
             sender_id: self.sender_id.clone(),
             receiver: self.receiver.clone(),
             amount: self.amount,
-        }
-    }
-}
-
-impl AppchainFact {
-    ///
-    pub fn to_fact(&self) -> Fact {
-        match self {
-            AppchainFact::UpdateValidatorSet(appchain_validator_set) => {
-                Fact::UpdateValidatorSet(appchain_validator_set.to_validator_set())
-            }
-            AppchainFact::LockAsset(appchain_locked_token) => {
-                Fact::LockAsset(appchain_locked_token.to_locked())
-            }
-            AppchainFact::Burn(appchain_burned_token) => {
-                Fact::Burn(appchain_burned_token.to_burned())
-            }
-        }
-    }
-    /// Clear extra storage used by the fact
-    ///
-    /// **This function must be called before remove `AppchainFact` from storage**
-    pub fn clear_extra_storage(&self) {
-        match self {
-            AppchainFact::UpdateValidatorSet(appchain_validator_set) => {
-                appchain_validator_set.validators.iter().for_each(|mut v| {
-                    v.remove();
-                });
-            }
-            _ => (),
         }
     }
 }

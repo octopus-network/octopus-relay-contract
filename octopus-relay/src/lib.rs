@@ -17,8 +17,8 @@ use crate::bridging::TokenBridging;
 use crate::storage_key::StorageKey;
 // To conserve gas, efficient serialization is achieved through Borsh (http://borsh.io/)
 use crate::types::{
-    Appchain, AppchainId, AppchainStatus, BridgeToken, Delegator, DelegatorId, Fact, SeqNum,
-    StorageBalance, Validator, ValidatorId, ValidatorSet,
+    Appchain, AppchainId, AppchainStatus, BridgeToken, Delegator, DelegatorId, Fact, LiteValidator,
+    SeqNum, StorageBalance, Validator, ValidatorId, ValidatorIndex, ValidatorSet,
 };
 use appchain::metadata::AppchainMetadata;
 use appchain::state::AppchainState;
@@ -717,14 +717,26 @@ impl OctopusRelay {
     pub fn get_facts(&self, appchain_id: AppchainId, start: SeqNum, limit: SeqNum) -> Vec<Fact> {
         let appchain_state = self.get_appchain_state(&appchain_id);
         let facts = appchain_state.get_facts(&start, &limit);
-        let mut filtered_facts: Vec<Fact> = Vec::new();
-        for fact in facts {
-            filtered_facts.push(fact.clone());
-            if let Fact::UpdateValidatorSet(_) = fact {
-                return filtered_facts;
-            }
-        }
-        filtered_facts
+        facts
+        // let mut filtered_facts: Vec<Fact> = Vec::new();
+        // for fact in facts {
+        //     filtered_facts.push(fact.clone());
+        //     if let Fact::UpdateValidatorSet(_) = fact {
+        //         return filtered_facts;
+        //     }
+        // }
+        // filtered_facts
+    }
+
+    pub fn get_validator_histories(
+        &self,
+        appchain_id: AppchainId,
+        seq_num: SeqNum,
+        start: ValidatorIndex,
+        limit: ValidatorIndex,
+    ) -> Option<Vec<LiteValidator>> {
+        let appchain_state = self.get_appchain_state(&appchain_id);
+        appchain_state.get_validator_histories(seq_num, start, limit)
     }
 }
 

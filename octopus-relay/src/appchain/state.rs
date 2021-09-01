@@ -13,7 +13,7 @@ use crate::types::{
 };
 use crate::VALIDATOR_SET_CYCLE;
 
-use super::fact::{AppchainBurnedNativeToken, AppchainLockedAsset, AppchainValidatorSet, RawFact};
+use super::fact::{AppchainBurnedNativeToken, AppchainLockedAsset, RawFact};
 use super::validator::{
     AppchainValidator, ValidatorHistory, ValidatorHistoryIndexSet, ValidatorHistoryList,
 };
@@ -63,7 +63,7 @@ pub struct AppchainState {
     pub validator_last_index: ValidatorIndex,
     pub validator_id_to_index: LookupMap<ValidatorId, ValidatorIndex>,
     /// Current validators by index
-    pub validator_indexes: UnorderedMap<ValidatorIndex, HistoryIndex>,
+    pub validator_indexes: UnorderedMap<ValidatorIndex, bool>,
 }
 
 impl AppchainState {
@@ -160,27 +160,44 @@ impl AppchainState {
         &self,
         key_set: ValidatorHistoryIndexSet,
     ) -> ValidatorSet {
-        let mut validators = Vec::new();
-        for index in 0..key_set.index_set.len() {
-            let v_index = key_set.index_set.get(index).unwrap();
-            let history_list = self
-                .validator_history_lists
-                .get(&v_index)
-                .unwrap()
-                .get()
-                .unwrap()
-                .to_vec();
-            let v_history = history_list
-                .iter()
-                .rev()
-                .find(|h| h.get().unwrap().set_id <= key_set.set_id);
-            let validator = v_history.unwrap().get().unwrap().to_lite_validator();
-            validators.push(validator);
-        }
         ValidatorSet {
             seq_num: key_set.seq_num,
             set_id: key_set.set_id,
-            validators,
+            validators_len: key_set.index_set.len() as u32,
+        }
+    }
+
+    pub fn get_validator_histories(
+        &self,
+        seq_num: SeqNum,
+        start: ValidatorIndex,
+        limit: ValidatorIndex,
+    ) -> Option<Vec<LiteValidator>> {
+        let raw_fact = self.raw_facts.get(seq_num as u64).unwrap().get().unwrap();
+        match raw_fact {
+            RawFact::ValidatorHistoryIndexSet(key_set) => {
+                let mut validators = Vec::new();
+                let index_set_len = key_set.index_set.len().try_into().unwrap_or(0);
+                let end = std::cmp::min(start + limit, index_set_len);
+                for index in start..end {
+                    let v_index = key_set.index_set.get(index as usize).unwrap();
+                    let history_list = self
+                        .validator_history_lists
+                        .get(&v_index)
+                        .unwrap()
+                        .get()
+                        .unwrap()
+                        .to_vec();
+                    let v_history = history_list
+                        .iter()
+                        .rev()
+                        .find(|h| h.get().unwrap().set_id <= key_set.set_id);
+                    let validator = v_history.unwrap().get().unwrap().to_lite_validator();
+                    validators.push(validator);
+                }
+                Some(validators)
+            }
+            _ => None,
         }
     }
 
@@ -333,6 +350,9 @@ impl AppchainState {
             self.validator_index_to_id
                 .insert(&validator_index, &validator_id);
         }
+        let index_of_validator = self.validator_id_to_index.get(&validator_id).unwrap();
+        self.validator_indexes.insert(&index_of_validator, &true);
+        self.validator_last_index += 1;
     }
 
     fn record_validator_history(&mut self, validator_id: ValidatorId) {
@@ -543,6 +563,7 @@ impl AppchainState {
     // Get facts by limit number
     pub fn get_facts(&self, start: &SeqNum, limit: &SeqNum) -> Vec<Fact> {
         let facts_len = self.raw_facts.len().try_into().unwrap_or(0);
+        log!("facts_len {}", facts_len);
         let end = std::cmp::min(start + limit, facts_len);
         let mut facts = (start.clone()..end)
             .map(|index| {

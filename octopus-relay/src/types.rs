@@ -72,8 +72,8 @@ pub struct LiteValidator {
 #[serde(crate = "near_sdk::serde")]
 pub struct ValidatorSet {
     pub seq_num: SeqNum,
-    pub set_id: u32,
-    pub validators: Vec<LiteValidator>,
+    pub set_id: SetId,
+    pub validators_len: ValidatorIndex,
 }
 
 #[derive(Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug)]

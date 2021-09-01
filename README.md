@@ -111,6 +111,9 @@ near call $RELAY_CONTRACT_ID update_subql_url '{"appchain_id": "testchain", "sub
 # Get finalized validator_set
 near view $RELAY_CONTRACT_ID get_validator_set '{"appchain_id": "testchain"}'
 
+# Get validator_histories for validator_set
+near view $RELAY_CONTRACT_ID get_validator_histories '{"appchain_id": "testchain", "seq_num": 0, "start": 0, "limit": 30 }'
+
 # Stake more
 near call $OCT_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "200000000000000000000000000", "msg": "stake_more,testchain"}' --accountId $SIGNER --amount 0.000000000000000000000001
 
