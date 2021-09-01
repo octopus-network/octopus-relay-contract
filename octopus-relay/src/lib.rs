@@ -516,12 +516,10 @@ impl OctopusRelay {
         account_id: AccountId,
     ) -> Option<Validator> {
         let appchain_state = self.get_appchain_state(&appchain_id);
-        let validators = appchain_state.get_validators();
-        let validator_option = validators.iter().find(|v| v.account_id == account_id);
-        if let Some(validator) = validator_option {
-            return Option::from(validator.to_validator());
+        if let Some(appchain_validator) = appchain_state.get_validator_by_account(&account_id) {
+            return Some(appchain_validator.to_validator());
         }
-        Option::None
+        None
     }
 
     pub fn get_validator(
@@ -614,7 +612,6 @@ impl OctopusRelay {
         let validator = self
             .get_validator_by_account(appchain_id.clone(), account_id)
             .expect("You are not staking on the appchain");
-
         let mut appchain_state = self.get_appchain_state(&appchain_id);
         appchain_state.stake(&validator.id, &amount);
         self.total_staked_balance += amount;
@@ -677,11 +674,8 @@ impl OctopusRelay {
             "Appchain can't be staked in current status."
         );
         let account_id = env::signer_account_id();
-        let validators = self.get_validators(appchain_id.clone()).unwrap();
-
-        let validator = validators
-            .iter()
-            .find(|v| v.account_id == account_id)
+        let validator = self
+            .get_validator_by_account(appchain_id.clone(), account_id.clone())
             .expect("You are not staked on the appchain");
 
         ext_token::ft_transfer(
@@ -717,15 +711,14 @@ impl OctopusRelay {
     pub fn get_facts(&self, appchain_id: AppchainId, start: SeqNum, limit: SeqNum) -> Vec<Fact> {
         let appchain_state = self.get_appchain_state(&appchain_id);
         let facts = appchain_state.get_facts(&start, &limit);
-        facts
-        // let mut filtered_facts: Vec<Fact> = Vec::new();
-        // for fact in facts {
-        //     filtered_facts.push(fact.clone());
-        //     if let Fact::UpdateValidatorSet(_) = fact {
-        //         return filtered_facts;
-        //     }
-        // }
-        // filtered_facts
+        let mut filtered_facts: Vec<Fact> = Vec::new();
+        for fact in facts {
+            filtered_facts.push(fact.clone());
+            if let Fact::UpdateValidatorSet(_) = fact {
+                return filtered_facts;
+            }
+        }
+        filtered_facts
     }
 
     pub fn get_validator_histories(

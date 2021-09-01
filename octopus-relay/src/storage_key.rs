@@ -16,7 +16,11 @@ pub enum StorageKey {
     ValidatorHistoryLists(AppchainId),
     ValidatorIndexToId(AppchainId),
     ValidatorIdToIndex(AppchainId),
-    ValidatorIndexes(AccountId),
+    ValidatorIndexes(AppchainId),
+    DelegatorHistoryLists(AppchainId, ValidatorId),
+    DelegatorIndexToId(AppchainId, ValidatorId),
+    DelegatorIdToIndex(AppchainId, ValidatorId),
+    DelegatorIndexes(AppchainId, ValidatorId),
     RawFact {
         appchain_id: AppchainId,
         fact_index: u32,
@@ -74,6 +78,18 @@ impl StorageKey {
             StorageKey::ValidatorIndexToId(appchain_id) => format!("{}%vi", appchain_id),
             StorageKey::ValidatorIdToIndex(appchain_id) => format!("{}%iv", appchain_id),
             StorageKey::ValidatorIndexes(appchain_id) => format!("{}%vis", appchain_id),
+            StorageKey::DelegatorHistoryLists(appchain_id, validator_id) => {
+                format!("{}{}%dhs", appchain_id, validator_id)
+            }
+            StorageKey::DelegatorIndexToId(appchain_id, validator_id) => {
+                format!("{}{}%di", appchain_id, validator_id)
+            }
+            StorageKey::DelegatorIdToIndex(appchain_id, validator_id) => {
+                format!("{}{}%id", appchain_id, validator_id)
+            }
+            StorageKey::DelegatorIndexes(appchain_id, validator_id) => {
+                format!("{}{}%dis", appchain_id, validator_id)
+            }
             StorageKey::RawFact {
                 appchain_id,
                 fact_index,

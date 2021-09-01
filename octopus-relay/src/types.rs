@@ -17,11 +17,8 @@ pub type SeqNum = u32;
 pub type SetId = u32;
 
 pub type ValidatorIndex = u32;
-pub type DelegatorKey = u32;
 pub type HistoryIndex = u32;
-
-pub type ValidatorHistoryKey = (ValidatorIndex, HistoryIndex);
-pub type DelegatorHistoryKey = (DelegatorKey, HistoryIndex);
+pub type DelegatorIndex = u32;
 
 /// Describes the status of appchains
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug, PartialEq)]
@@ -65,7 +62,7 @@ pub struct LiteValidator {
     pub account_id: AccountId,
     pub weight: U128,
     pub block_height: BlockHeight,
-    pub delegators: Vec<Delegator>,
+    pub delegators_len: DelegatorIndex,
 }
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug)]

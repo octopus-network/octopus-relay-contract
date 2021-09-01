@@ -93,6 +93,9 @@ near view $RELAY_CONTRACT_ID get_num_appchains ''
 # Stake
 near call $OCT_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "200000000000000000000000000", "msg": "stake,testchain,c425bbf59c7bf49e4fcc6547539d84ba8ecd2fb171f5b83cde3571d45d0c8224"}' --accountId $SIGNER --amount 0.000000000000000000000001
 
+# Unstake
+near call $RELAY_CONTRACT_ID unstake '{"appchain_id": "testchain"}' --accountId $SIGNER --gas 300000000000000
+
 # View current validators(Not finalized)
 near view $RELAY_CONTRACT_ID get_validators '{"appchain_id": "testchain"}'
 
@@ -108,6 +111,7 @@ near call $RELAY_CONTRACT_ID update_appchain '{"appchain_id": "testchain", "webs
 # Update subql_url
 near call $RELAY_CONTRACT_ID update_subql_url '{"appchain_id": "testchain", "subql_url": "subql_url"}' --accountId $RELAY_CONTRACT_ID
 
+
 # Get finalized validator_set
 near view $RELAY_CONTRACT_ID get_validator_set '{"appchain_id": "testchain"}'
 
@@ -115,7 +119,7 @@ near view $RELAY_CONTRACT_ID get_validator_set '{"appchain_id": "testchain"}'
 near view $RELAY_CONTRACT_ID get_validator_histories '{"appchain_id": "testchain", "seq_num": 0, "start": 0, "limit": 30 }'
 
 # Stake more
-near call $OCT_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "200000000000000000000000000", "msg": "stake_more,testchain"}' --accountId $SIGNER --amount 0.000000000000000000000001
+near call $OCT_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "200000000000000000000000000", "msg": "stake_more,testchain"}' --accountId $SIGNER --amount 0.000000000000000000000001 --gas 300000000000000
 
 # Get finalized validator_set by sequence number
 near view $RELAY_CONTRACT_ID get_validator_set_by_set_id '{"appchain_id": "testchain", "set_id": 0}'

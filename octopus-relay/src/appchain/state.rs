@@ -150,21 +150,54 @@ impl AppchainState {
             "This validator is already staked on the appchain!"
         );
         let account_exists = self.account_map.contains_key(account_id);
-        // assert!(
-        //     !account_exists,
-        //     "Your account is already staked on the appchain!"
-        // );
+        assert!(
+            !account_exists,
+            "Your account is already staked on the appchain!"
+        );
     }
 
-    fn history_index_set_to_validator_set(
-        &self,
-        key_set: ValidatorHistoryIndexSet,
-    ) -> ValidatorSet {
+    pub fn get_validator_by_account(&self, account_id: &AccountId) -> Option<AppchainValidator> {
+        let validato_id = self
+            .account_map
+            .get(account_id)
+            .expect("This account is not validator");
+        self.validators.get(&validato_id).unwrap().get()
+    }
+
+    fn history_index_set_to_validator_set(&self, vh_set: ValidatorHistoryIndexSet) -> ValidatorSet {
         ValidatorSet {
-            seq_num: key_set.seq_num,
-            set_id: key_set.set_id,
-            validators_len: key_set.index_set.len() as u32,
+            seq_num: vh_set.seq_num,
+            set_id: vh_set.set_id,
+            validators_len: vh_set.indexes.len() as u32,
         }
+    }
+
+    fn get_current_validator_histories(
+        &self,
+        start: ValidatorIndex,
+        limit: ValidatorIndex,
+    ) -> Option<Vec<LiteValidator>> {
+        let indexes_len = self.validator_indexes.len();
+        let end = std::cmp::min(start + limit, indexes_len as u32);
+        let indexes: Vec<ValidatorIndex> = self.validator_indexes.keys().collect();
+        let mut validators = Vec::new();
+        for index in start..end {
+            let v_index = indexes.get(index as usize).unwrap();
+            let history_list = self
+                .validator_history_lists
+                .get(&v_index)
+                .unwrap()
+                .get()
+                .unwrap()
+                .to_vec();
+            let v_history = history_list
+                .iter()
+                .rev()
+                .find(|h| h.get().unwrap().set_id <= self.validators_nonce);
+            let validator = v_history.unwrap().get().unwrap().to_lite_validator();
+            validators.push(validator);
+        }
+        Some(validators)
     }
 
     pub fn get_validator_histories(
@@ -173,38 +206,45 @@ impl AppchainState {
         start: ValidatorIndex,
         limit: ValidatorIndex,
     ) -> Option<Vec<LiteValidator>> {
-        let raw_fact = self.raw_facts.get(seq_num as u64).unwrap().get().unwrap();
-        match raw_fact {
-            RawFact::ValidatorHistoryIndexSet(key_set) => {
-                let mut validators = Vec::new();
-                let index_set_len = key_set.index_set.len().try_into().unwrap_or(0);
-                let end = std::cmp::min(start + limit, index_set_len);
-                for index in start..end {
-                    let v_index = key_set.index_set.get(index as usize).unwrap();
-                    let history_list = self
-                        .validator_history_lists
-                        .get(&v_index)
-                        .unwrap()
-                        .get()
-                        .unwrap()
-                        .to_vec();
-                    let v_history = history_list
-                        .iter()
-                        .rev()
-                        .find(|h| h.get().unwrap().set_id <= key_set.set_id);
-                    let validator = v_history.unwrap().get().unwrap().to_lite_validator();
-                    validators.push(validator);
+        let facts_len = self.raw_facts.len().try_into().unwrap_or(0);
+        if facts_len == 0 {
+            return Some(Vec::new());
+        } else if seq_num == facts_len {
+            return self.get_current_validator_histories(start, limit);
+        } else {
+            let raw_fact = self.raw_facts.get(seq_num as u64).unwrap().get().unwrap();
+            match raw_fact {
+                RawFact::ValidatorHistoryIndexSet(vh_set) => {
+                    let mut validators = Vec::new();
+                    let index_set_len = vh_set.indexes.len().try_into().unwrap_or(0);
+                    let end = std::cmp::min(start + limit, index_set_len);
+                    for index in start..end {
+                        let v_index = vh_set.indexes.get(index as usize).unwrap();
+                        let history_list = self
+                            .validator_history_lists
+                            .get(&v_index)
+                            .unwrap()
+                            .get()
+                            .unwrap()
+                            .to_vec();
+                        let v_history = history_list
+                            .iter()
+                            .rev()
+                            .find(|h| h.get().unwrap().set_id <= vh_set.set_id);
+                        let validator = v_history.unwrap().get().unwrap().to_lite_validator();
+                        validators.push(validator);
+                    }
+                    Some(validators)
                 }
-                Some(validators)
+                _ => None,
             }
-            _ => None,
         }
     }
 
     fn raw_fact_to_fact(&self, raw_fact: RawFact) -> Fact {
         match raw_fact {
-            RawFact::ValidatorHistoryIndexSet(key_set) => {
-                Fact::UpdateValidatorSet(self.history_index_set_to_validator_set(key_set))
+            RawFact::ValidatorHistoryIndexSet(vh_set) => {
+                Fact::UpdateValidatorSet(self.history_index_set_to_validator_set(vh_set))
             }
             RawFact::LockAsset(locked) => Fact::LockAsset(locked),
             RawFact::Burn(burned) => Fact::Burn(burned),
@@ -250,11 +290,11 @@ impl AppchainState {
     // Convert current validators array to struct `ValidatorSet`
     fn get_latest_validator_history_index_set(&self) -> ValidatorHistoryIndexSet {
         let next_seq_num = self.raw_facts.len().try_into().unwrap();
-        let validator_index_set = self.validator_indexes.keys().collect();
+        let validator_indexes = self.validator_indexes.keys().collect();
         ValidatorHistoryIndexSet {
             seq_num: next_seq_num,
             set_id: self.validators_nonce,
-            index_set: validator_index_set,
+            indexes: validator_indexes,
         }
     }
 
@@ -326,6 +366,35 @@ impl AppchainState {
                             block_height: env::block_index(),
                             delegators: UnorderedMap::new(
                                 StorageKey::AppchainDelegators(
+                                    self.appchain_id.clone(),
+                                    validator_id.clone(),
+                                )
+                                .into_bytes(),
+                            ),
+                            delegator_history_lists: LookupMap::new(
+                                StorageKey::DelegatorHistoryLists(
+                                    self.appchain_id.clone(),
+                                    validator_id.clone(),
+                                )
+                                .into_bytes(),
+                            ),
+                            delegator_index_to_id: LookupMap::new(
+                                StorageKey::DelegatorIndexToId(
+                                    self.appchain_id.clone(),
+                                    validator_id.clone(),
+                                )
+                                .into_bytes(),
+                            ),
+                            delegator_last_index: 0,
+                            delegator_id_to_index: LookupMap::new(
+                                StorageKey::DelegatorIdToIndex(
+                                    self.appchain_id.clone(),
+                                    validator_id.clone(),
+                                )
+                                .into_bytes(),
+                            ),
+                            delegator_indexes: UnorderedMap::new(
+                                StorageKey::DelegatorIndexes(
                                     self.appchain_id.clone(),
                                     validator_id.clone(),
                                 )
@@ -410,7 +479,7 @@ impl AppchainState {
             log!("validator_indexes length {}", self.validator_indexes.len());
             if self.validator_indexes.len() > 0 {
                 let next_seq_num = self.raw_facts.len().try_into().unwrap();
-                let validator_index_set = self.validator_indexes.keys().collect();
+                let validator_indexes = self.validator_indexes.keys().collect();
                 let raw_fact = LazyOption::new(
                     StorageKey::RawFact {
                         appchain_id: self.appchain_id.clone(),
@@ -421,7 +490,7 @@ impl AppchainState {
                         ValidatorHistoryIndexSet {
                             seq_num: next_seq_num,
                             set_id: self.validators_nonce,
-                            index_set: validator_index_set,
+                            indexes: validator_indexes,
                         },
                     )),
                 );
@@ -464,14 +533,14 @@ impl AppchainState {
             .raw_facts
             .iter()
             .filter(|f| match f.get().unwrap() {
-                RawFact::ValidatorHistoryIndexSet(key_set) => key_set.set_id.eq(validators_nonce),
+                RawFact::ValidatorHistoryIndexSet(vh_set) => vh_set.set_id.eq(validators_nonce),
                 _ => false,
             })
             .collect::<Vec<_>>();
         if validator_history_set_facts.len() > 0 {
             match validator_history_set_facts.get(0).unwrap().get().unwrap() {
-                RawFact::ValidatorHistoryIndexSet(key_set) => {
-                    Option::from(self.history_index_set_to_validator_set(key_set))
+                RawFact::ValidatorHistoryIndexSet(vh_set) => {
+                    Option::from(self.history_index_set_to_validator_set(vh_set))
                 }
                 _ => Option::None,
             }
@@ -563,7 +632,6 @@ impl AppchainState {
     // Get facts by limit number
     pub fn get_facts(&self, start: &SeqNum, limit: &SeqNum) -> Vec<Fact> {
         let facts_len = self.raw_facts.len().try_into().unwrap_or(0);
-        log!("facts_len {}", facts_len);
         let end = std::cmp::min(start + limit, facts_len);
         let mut facts = (start.clone()..end)
             .map(|index| {

@@ -1,16 +1,17 @@
 /// Appchain delegator of an appchain validator
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LazyOption, LookupMap};
+use near_sdk::collections::{LazyOption, LookupMap, Vector};
 use near_sdk::{AccountId, Balance, BlockHeight};
 
-use crate::types::{Delegator, DelegatorHistoryKey, DelegatorId};
+use crate::types::{Delegator, DelegatorId, DelegatorIndex};
+
+pub type ValidatorHistoryList = Vector<LazyOption<DelegatorHistory>>;
 
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct DelegatorKeySet {
+pub struct DelegatorHistoryIndexSet {
     pub set_id: u32,
     // Use LookupMap instead of Vector to save gas.
-    pub delegator_index_set: LookupMap<u32, DelegatorHistoryKey>,
-    pub delegator_index_set_len: u32,
+    pub indexes: Vec<DelegatorIndex>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -21,6 +22,8 @@ pub struct DelegatorHistory {
     pub block_height: BlockHeight,
     pub set_id: u32,
 }
+
+pub type DelegatorHistoryList = Vector<LazyOption<DelegatorHistory>>;
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct AppchainDelegator {
