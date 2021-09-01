@@ -48,8 +48,7 @@ const APPCHAIN_METADATA_NOT_FOUND: &'static str = "Appchain metadata not found";
 const APPCHAIN_STATE_NOT_FOUND: &'static str = "Appchain state not found";
 
 // 20 minutes
-// const VALIDATOR_SET_CYCLE: u64 = 1 * 60000000000;
-const VALIDATOR_SET_CYCLE: u64 = 60000000000 / 12;
+const VALIDATOR_SET_CYCLE: u64 = 20 * 60000000000;
 // const VALIDATOR_SET_CYCLE: u64 = 86400000000000;
 
 // Structs in Rust are similar to other languages, and may include impl keyword as shown below
