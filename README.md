@@ -37,7 +37,7 @@ export BRIDGE_TOKEN_CONTRACT_ID=bridge_token_account_id
 export SIGNER=your_account_id
 
 # Initialize contract with given council and parameters (this is for testing, where you stil have access key to the contract).
-near call $RELAY_CONTRACT_ID new '{"token_contract_id": "'$OCT_TOKEN_CONTRACT_ID'", "appchain_minimum_validators": 2, "minimum_staking_amount": "100000000000000000000000000", "bridge_limit_ratio": 3333, "oct_token_price": "2000000" }' --accountId $RELAY_CONTRACT_ID
+near call $RELAY_CONTRACT_ID new '{"token_contract_id": "'$OCT_TOKEN_CONTRACT_ID'", "appchain_minimum_validators": 2, "minimum_staking_amount": "100000000000000000000", "bridge_limit_ratio": 3333, "oct_token_price": "2000000" }' --accountId $RELAY_CONTRACT_ID
 ```
 
 ### Use test contracts
@@ -47,7 +47,7 @@ near call $RELAY_CONTRACT_ID new '{"token_contract_id": "'$OCT_TOKEN_CONTRACT_ID
 export RELAY_CONTRACT_ID=octopus-relay.testnet
 
 # Set OCT token contract Id
-export OCT_TOKEN_CONTRACT_ID=oct-token.testnet
+export OCT_TOKEN_CONTRACT_ID=oct.dev_oct_relay.testnet
 
 # Set bridge token contract Id
 export BRIDGE_TOKEN_CONTRACT_ID=usdc.testnet
@@ -60,7 +60,7 @@ export BRIDGE_TOKEN_CONTRACT_ID=usdc.testnet
 export RELAY_CONTRACT_ID=dev-oct-relay.testnet
 
 # Set OCT token contract Id, it is the same as testnet
-export OCT_TOKEN_CONTRACT_ID=oct-token.testnet
+export OCT_TOKEN_CONTRACT_ID=oct.dev_oct_relay.testnet
 
 # Set bridge token contract Id, it is the same as testnet
 export BRIDGE_TOKEN_CONTRACT_ID=usdc.testnet
@@ -75,7 +75,7 @@ near call $OCT_TOKEN_CONTRACT_ID storage_deposit  '{"account_id": "'$RELAY_CONTR
 near call $BRIDGE_TOKEN_CONTRACT_ID storage_deposit  '{"account_id": "'$RELAY_CONTRACT_ID'"}' --accountId $SIGNER --amount 0.1
 
 # Register appchain
-near call $OCT_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "200000000000000000000000000", "msg": "register_appchain,testchain,website_url_string,github_address_string,github_release,commit_id,email_string"}' --accountId $SIGNER --amount 0.000000000000000000000001
+near call $OCT_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "200000000000000000000", "msg": "register_appchain,testchain,website_url_string,github_address_string,github_release,commit_id,email_string"}' --accountId $SIGNER --amount 0.000000000000000000000001
 
 
 # Pass appchain
@@ -91,7 +91,7 @@ near view $RELAY_CONTRACT_ID get_appchain '{"appchain_id": "testchain"}'
 near view $RELAY_CONTRACT_ID get_num_appchains ''
 
 # Stake
-near call $OCT_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "200000000000000000000000000", "msg": "stake,testchain,c425bbf59c7bf49e4fcc6547539d84ba8ecd2fb171f5b83cde3571d45d0c8224"}' --accountId $SIGNER --amount 0.000000000000000000000001
+near call $OCT_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "200000000000000000000", "msg": "stake,testchain,c425bbf59c7bf49e4fcc6547539d84ba8ecd2fb171f5b83cde3571d45d0c8224"}' --accountId $SIGNER --amount 0.000000000000000000000001
 
 # Unstake
 near call $RELAY_CONTRACT_ID unstake '{"appchain_id": "testchain"}' --accountId $SIGNER --gas 300000000000000
@@ -119,7 +119,7 @@ near view $RELAY_CONTRACT_ID get_validator_set '{"appchain_id": "testchain"}'
 near view $RELAY_CONTRACT_ID get_validator_histories '{"appchain_id": "testchain", "seq_num": 0, "start": 0, "limit": 30 }'
 
 # Stake more
-near call $OCT_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "200000000000000000000000000", "msg": "stake_more,testchain"}' --accountId $SIGNER --amount 0.000000000000000000000001 --gas 300000000000000
+near call $OCT_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONTRACT_ID'", "amount": "200000000000000000000", "msg": "stake_more,testchain"}' --accountId $SIGNER --amount 0.000000000000000000000001 --gas 300000000000000
 
 # Get finalized validator_set by sequence number
 near view $RELAY_CONTRACT_ID get_validator_set_by_set_id '{"appchain_id": "testchain", "set_id": 0}'
