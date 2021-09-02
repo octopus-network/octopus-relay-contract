@@ -467,7 +467,7 @@ impl OctopusRelay {
             boot_nodes: appchain_metadata.boot_nodes.clone(),
             rpc_endpoint: appchain_metadata.rpc_endpoint.clone(),
             bond_tokens: appchain_metadata.bond_tokens.into(),
-            validators: self.get_validators(appchain_id.clone()).unwrap_or_default(),
+            validators_len: appchain_state.validators.len() as u32,
             validators_timestamp: appchain_state.validators_timestamp,
             status: appchain_state.status,
             block_height: appchain_metadata.block_height,
@@ -485,11 +485,16 @@ impl OctopusRelay {
         self.appchain_minimum_validators
     }
 
-    pub fn get_validators(&self, appchain_id: AppchainId) -> Option<Vec<Validator>> {
+    pub fn get_validators(
+        &self,
+        appchain_id: AppchainId,
+        start: u32,
+        limit: u32,
+    ) -> Option<Vec<Validator>> {
         let appchain_state = self.get_appchain_state(&appchain_id);
         Option::from(
             appchain_state
-                .get_validators()
+                .get_validators(start, limit)
                 .iter()
                 .map(|v| v.to_validator())
                 .collect::<Vec<_>>(),

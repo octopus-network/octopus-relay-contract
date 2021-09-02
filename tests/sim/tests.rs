@@ -1,4 +1,13 @@
-use crate::{default::{appchain_minimum_validators, default_activate_appchain, default_appchain_go_staging, default_init, default_init_by_previous, default_pass_appchain, default_register_appchain, default_register_bridge_token, default_set_bridge_permitted, default_stake, default_update_appchain, initial_balance_str, lock_token, minimum_staking_amount_str, to_decimals_amount, val_id0, val_id1}, utils::upgrade_contract_code_and_perform_migration};
+use crate::{
+    default::{
+        appchain_minimum_validators, default_activate_appchain, default_appchain_go_staging,
+        default_init, default_init_by_previous, default_pass_appchain, default_register_appchain,
+        default_register_bridge_token, default_set_bridge_permitted, default_stake,
+        default_update_appchain, initial_balance_str, lock_token, minimum_staking_amount_str,
+        to_decimals_amount, val_id0, val_id1,
+    },
+    utils::upgrade_contract_code_and_perform_migration,
+};
 use near_sdk::json_types::U128;
 use near_sdk::serde_json::json;
 use near_sdk_sim::{to_yocto, ExecutionResult, UserAccount, DEFAULT_GAS};
@@ -63,7 +72,6 @@ fn simulate_register_appchain() {
     assert_eq!(appchain.chain_spec_raw_url, String::from(""));
     assert_eq!(appchain.chain_spec_raw_hash, String::from(""));
     assert_eq!(appchain.bond_tokens, U128::from(transfer_amount));
-    assert_eq!(appchain.validators.len(), 0);
     assert_eq!(appchain.status, AppchainStatus::Auditing);
 }
 

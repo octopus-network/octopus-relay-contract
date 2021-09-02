@@ -97,7 +97,7 @@ near call $OCT_TOKEN_CONTRACT_ID ft_transfer_call '{"receiver_id": "'$RELAY_CONT
 near call $RELAY_CONTRACT_ID unstake '{"appchain_id": "testchain"}' --accountId $SIGNER --gas 300000000000000
 
 # View current validators(Not finalized)
-near view $RELAY_CONTRACT_ID get_validators '{"appchain_id": "testchain"}'
+near view $RELAY_CONTRACT_ID get_validators '{"appchain_id": "testchain", "start": 0, "limit": 30}'
 
 # Remove appchain
 near call $RELAY_CONTRACT_ID remove_appchain '{"appchain_id": "testchain"}' --accountId $RELAY_CONTRACT_ID --gas 300000000000000

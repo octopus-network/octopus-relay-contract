@@ -90,7 +90,7 @@ pub struct Appchain {
     pub boot_nodes: String,
     pub rpc_endpoint: String,
     pub bond_tokens: U128,
-    pub validators: Vec<Validator>,
+    pub validators_len: u32,
     pub validators_timestamp: u64,
     pub status: AppchainStatus,
     pub block_height: BlockHeight,

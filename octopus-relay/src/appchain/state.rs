@@ -123,15 +123,22 @@ impl AppchainState {
             d.remove();
         });
     }
+
     /// Get all validators of the appchain
-    pub fn get_validators(&self) -> Vec<AppchainValidator> {
-        self.validators
-            .values_as_vector()
-            .iter()
-            .filter(|v| v.is_some())
-            .map(|v| v.get().unwrap())
-            .collect()
+    pub fn get_validators(&self, start: u32, limit: u32) -> Vec<AppchainValidator> {
+        let indexes_len = self.validator_indexes.len();
+        let end = std::cmp::min(start + limit, indexes_len as u32);
+        let indexes: Vec<ValidatorIndex> = self.validator_indexes.keys().collect();
+        let mut validators = Vec::new();
+        for index in start..end {
+            let v_index = indexes.get(index as usize).unwrap();
+            let v_id = self.validator_index_to_id.get(&v_index).unwrap();
+            let validator = self.validators.get(&v_id).unwrap().get().unwrap();
+            validators.push(validator);
+        }
+        validators
     }
+
     /// Get validator by `ValidatorId`
     pub fn get_validator(&self, validator_id: &ValidatorId) -> Option<AppchainValidator> {
         if let Some(appchain_validator_option) = self.validators.get(validator_id) {
