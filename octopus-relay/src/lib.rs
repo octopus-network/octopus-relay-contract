@@ -42,7 +42,7 @@ const GAS_FOR_FT_TRANSFER_CALL: u64 = 35 * T_GAS;
 const SINGLE_CALL_GAS: u64 = 50 * T_GAS;
 const COMPLEX_CALL_GAS: u64 = 120 * T_GAS;
 const SIMPLE_CALL_GAS: u64 = 5 * T_GAS;
-const OCT_DECIMALS_BASE: Balance = 1000_000_000_000_000_000_000_000;
+const OCT_DECIMALS_BASE: Balance = 1000_000_000_000_000_000;
 
 const APPCHAIN_METADATA_NOT_FOUND: &'static str = "Appchain metadata not found";
 const APPCHAIN_STATE_NOT_FOUND: &'static str = "Appchain state not found";
@@ -499,6 +499,11 @@ impl OctopusRelay {
                 .map(|v| v.to_validator())
                 .collect::<Vec<_>>(),
         )
+    }
+
+    pub fn account_exists(&self, appchain_id: AppchainId, account_id: AccountId) -> Option<bool> {
+        let appchain_state = self.get_appchain_state(&appchain_id);
+        Option::from(appchain_state.account_exists(&account_id))
     }
 
     pub fn next_validator_set(

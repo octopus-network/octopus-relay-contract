@@ -156,11 +156,15 @@ impl AppchainState {
             self.validators.get(validator_id).is_none(),
             "This validator is already staked on the appchain!"
         );
-        let account_exists = self.account_map.contains_key(account_id);
+        let account_exists = self.account_exists(account_id);
         assert!(
             !account_exists,
             "Your account is already staked on the appchain!"
         );
+    }
+
+    pub fn account_exists(&self, account_id: &AccountId) -> bool {
+        self.account_map.contains_key(account_id)
     }
 
     pub fn get_validator_by_account(&self, account_id: &AccountId) -> Option<AppchainValidator> {
