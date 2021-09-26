@@ -69,6 +69,12 @@ export BRIDGE_TOKEN_CONTRACT_ID=usdc.testnet
 ### Usage
 
 ```bash
+# update_token_contract_id
+near call $RELAY_CONTRACT_ID update_token_contract_id '{"token_contract_id": "'$OCT_TOKEN_CONTRACT_ID'"}' --accountId $RELAY_CONTRACT_ID --gas 300000000000000
+
+# get_token_contract_id
+near view $RELAY_CONTRACT_ID get_token_contract_id
+
 # Storage deposit
 near call $OCT_TOKEN_CONTRACT_ID storage_deposit  '{"account_id": "'$RELAY_CONTRACT_ID'"}' --accountId $SIGNER --amount 0.1
 
@@ -98,6 +104,9 @@ near call $RELAY_CONTRACT_ID unstake '{"appchain_id": "testchain"}' --accountId 
 
 # View current validators(Not finalized)
 near view $RELAY_CONTRACT_ID get_validators '{"appchain_id": "testchain", "start": 0, "limit": 30}'
+
+# If account exists
+near view $RELAY_CONTRACT_ID account_exists '{"appchain_id": "testchain", "account_id": "madtest.testnet"}'
 
 # Remove appchain
 near call $RELAY_CONTRACT_ID remove_appchain '{"appchain_id": "testchain"}' --accountId $RELAY_CONTRACT_ID --gas 300000000000000

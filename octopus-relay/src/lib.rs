@@ -204,6 +204,15 @@ impl OctopusRelay {
         }
     }
 
+    pub fn update_token_contract_id(&mut self, token_contract_id: AccountId) {
+        self.assert_owner();
+        self.token_contract_id = token_contract_id;
+    }
+
+    pub fn get_token_contract_id(&self) -> AccountId {
+        self.token_contract_id.clone()
+    }
+
     pub fn ft_on_transfer(
         &mut self,
         sender_id: ValidAccountId,
