@@ -435,7 +435,7 @@ impl OctopusRelay {
     }
 
     pub fn remove_appchain_id(&mut self, appchain_id: AppchainId) {
-        self.assert_owner();
+        assert_self();
         let index = self
             .appchain_id_list
             .to_vec()
