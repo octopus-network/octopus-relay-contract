@@ -1,3 +1,4 @@
+*split into https://github.com/octopus-network/octopus-appchain-registry and https://github.com/octopus-network/octopus-appchain-anchor*
 # Octopus Relay Smart Contract
 
 Octopus Relay is part of the Octopus Network.
